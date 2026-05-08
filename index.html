@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTR Dispatch Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100vh}
+body{background:#0d0f14;color:#e8ecf4;font-family:'Barlow',sans-serif}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(245,166,35,.07) 0%,transparent 60%),
+             radial-gradient(ellipse 60% 40% at 80% 110%,rgba(91,141,238,.06) 0%,transparent 60%)}
+#app{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:0 16px 100px}
+
+/* ── Typography helpers ───────────────────────────────────── */
+.mono{font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:.02em}
+.label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+       letter-spacing:.15em;text-transform:uppercase;color:#7a8499}
+
+/* ── Surfaces ─────────────────────────────────────────────── */
+.card{background:#161a22;border:1px solid #2a3040;border-radius:14px;padding:22px 24px}
+.card-sm{background:#161a22;border:1px solid #2a3040;border-radius:10px;padding:14px 18px}
+.surface{background:#1e2330;border-radius:10px;padding:14px 18px;border:1px solid #2a3040}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+button{cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+       letter-spacing:.06em;text-transform:uppercase;border:none;border-radius:8px;
+       padding:10px 20px;font-size:14px;transition:opacity .15s,transform .1s}
+button:hover{opacity:.88}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-primary{background:linear-gradient(135deg,#f5a623,#e8732a);color:#0d0f14}
+.btn-danger{background:rgba(244,91,105,.13);color:#f45b69;border:1px solid rgba(244,91,105,.3)}
+.btn-ghost{background:rgba(255,255,255,.05);color:#e8ecf4;border:1px solid #2a3040}
+.btn-info{background:rgba(91,141,238,.13);color:#5b8dee;border:1px solid rgba(91,141,238,.3)}
+.btn-success{background:rgba(62,207,142,.13);color:#3ecf8e;border:1px solid rgba(62,207,142,.3)}
+
+/* ── Form inputs ──────────────────────────────────────────── */
+input,select{background:#1e2330;border:1.5px solid #2a3040;border-radius:8px;
+             color:#e8ecf4;font-family:'Barlow',sans-serif;font-size:15px;
+             padding:10px 14px;outline:none;width:100%;transition:border-color .2s,box-shadow .2s}
+input:focus,select:focus{border-color:#f5a623;box-shadow:0 0 0 3px rgba(245,166,35,.12)}
+input::placeholder{color:#3a4050}
+select option{background:#1e2330}
+
+/* ── Badges ───────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:3px 10px;
+       font-size:12px;font-weight:600;font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
+.badge-amber{background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.25)}
+.badge-green{background:rgba(62,207,142,.12);color:#3ecf8e;border:1px solid rgba(62,207,142,.25)}
+.badge-blue{background:rgba(91,141,238,.12);color:#5b8dee;border:1px solid rgba(91,141,238,.25)}
+.badge-muted{background:rgba(255,255,255,.06);color:#7a8499;border:1px solid #2a3040}
+.badge-red{background:rgba(244,91,105,.12);color:#f45b69;border:1px solid rgba(244,91,105,.25)}
+
+/* ── Tab bar ──────────────────────────────────────────────── */
+.tab-bar{display:flex;gap:4px;background:#1e2330;border-radius:10px;padding:4px;margin-bottom:20px}
+.tab{flex:1;padding:9px 12px;border-radius:7px;font-family:'Barlow Condensed',sans-serif;
+     font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+     color:#7a8499;background:none;border:none;cursor:pointer;transition:all .15s}
+.tab.active{background:#161a22;color:#f5a623;border:1px solid #2a3040}
+
+/* ── Divider ──────────────────────────────────────────────── */
+.divider{height:1px;background:#2a3040;margin:16px 0}
+
+/* ── Stop cards ───────────────────────────────────────────── */
+.stop-card{border:1px solid #2a3040;border-radius:12px;overflow:hidden;
+           margin-bottom:12px;background:#161a22}
+.stop-header{padding:15px 18px;display:flex;align-items:flex-start;
+             justify-content:space-between;gap:12px;cursor:pointer;
+             border-left:4px solid transparent;transition:background .15s;user-select:none}
+.stop-header:hover{background:rgba(255,255,255,.02)}
+.stop-body{display:none;padding:0 18px 16px;border-top:1px solid #2a3040}
+.stop-body.open{display:block}
+
+/* ── Order table ──────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+.tbl th{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+        letter-spacing:.12em;text-transform:uppercase;color:#7a8499;padding:8px 10px;
+        text-align:left;background:#1e2330;border-bottom:1px solid #2a3040;white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid rgba(42,48,64,.5);
+        color:#e8ecf4;vertical-align:top;line-height:1.35}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover{background:rgba(255,255,255,.015)}
+
+/* ── Check list ───────────────────────────────────────────── */
+.scroll-area{max-height:340px;overflow-y:auto;padding-right:4px}
+.scroll-area::-webkit-scrollbar{width:4px}
+.scroll-area::-webkit-scrollbar-track{background:#1e2330}
+.scroll-area::-webkit-scrollbar-thumb{background:#2a3040;border-radius:4px}
+.check-item{display:flex;align-items:center;gap:10px;padding:8px 10px;
+            border-radius:8px;cursor:pointer;transition:background .12s;
+            border-left:3px solid transparent}
+.check-item:hover{background:#1e2330}
+.check-item input[type=checkbox]{width:16px;height:16px;accent-color:#f5a623;
+                                  cursor:pointer;flex-shrink:0}
+
+/* ── Spinner ──────────────────────────────────────────────── */
+.spinner{width:20px;height:20px;border:2px solid #2a3040;border-top-color:#f5a623;
+         border-radius:50%;animation:spin .7s linear infinite;display:inline-block;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-screen{display:flex;align-items:center;justify-content:center;
+                min-height:60vh;flex-direction:column;gap:14px;color:#7a8499;font-size:14px}
+
+/* ── Toast ────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+       background:#1e2330;border:1px solid #3ecf8e;color:#3ecf8e;
+       border-radius:10px;padding:12px 24px;font-weight:600;font-size:14px;
+       z-index:999;animation:fadeUp .3s ease;white-space:nowrap;
+       font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
+.toast.err{border-color:#f45b69;color:#f45b69}
+@keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(10px)}
+                  to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── Page animation ───────────────────────────────────────── */
+.page-fade{animation:pf .25s ease}
+@keyframes pf{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Route dots ───────────────────────────────────────────── */
+.route-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+
+/* ── Setup banner ─────────────────────────────────────────── */
+.setup-banner{background:rgba(244,91,105,.08);border:1px solid rgba(244,91,105,.3);
+              border-radius:12px;padding:16px 20px;margin-bottom:20px}
+.setup-banner h3{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;
+                 text-transform:uppercase;color:#f45b69;margin-bottom:6px}
+.setup-banner p{font-size:13px;color:#e8ecf4;line-height:1.6}
+.setup-banner code{background:#1e2330;border-radius:4px;padding:2px 6px;font-size:12px;color:#f5a623}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media(max-width:600px){
+  #app{padding:0 12px 80px}
+  .card{padding:16px}
+  .stop-header{flex-wrap:wrap}
+  .tbl th:nth-child(3),.tbl td:nth-child(3){display:none}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ╔══════════════════════════════════════════════════════════╗
+//  CONFIGURATION — update this URL after deploying Apps Script
+// ╚══════════════════════════════════════════════════════════╝
+const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+
+// Admin password (must match Code.gs)
+const ADMIN_PASSWORD = "dispatch2026";
+
+// Stop colors for route visualization
+const STOP_COLORS = [
+  '#f5a623','#5b8dee','#3ecf8e','#e879a0',
+  '#a78bfa','#fb923c','#34d399','#f87171',
+  '#fbbf24','#60a5fa'
+];
+
+// ─── Simple hash (not crypto-secure, fine for internal tool) ─
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ─── Apps Script API caller ───────────────────────────────
+async function api(action, body={}) {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
+    throw new Error("SETUP_REQUIRED");
+  }
+  const url = APPS_SCRIPT_URL + "?action=" + action;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({action, ...body})
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// ─── Date formatter ───────────────────────────────────────
+function fmtDate(raw) {
+  if (!raw) return '';
+  // Handles "5/11/2026 0:00:00" and "Mon May 11 2026 00:00:00 GMT..."
+  let d;
+  const m = String(raw).match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+  if (m) d = new Date(+m[3], +m[1]-1, +m[2], +m[4], +m[5]);
+  else { d = new Date(raw); if(isNaN(d)) return String(raw); }
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const t = d.getHours()===0&&d.getMinutes()===0 ? '' :
+    ` ${d.getHours()%12||12}:${String(d.getMinutes()).padStart(2,'0')} ${d.getHours()<12?'AM':'PM'}`;
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${t}`;
+}
+
+// ─── Group shipments into stops ───────────────────────────
+function groupStops(shipments) {
+  const map = new Map();
+  (shipments||[]).forEach(s => {
+    if (!map.has(s.consignee))
+      map.set(s.consignee, {name:s.consignee,del_city:s.del_city,
+                             del_state:s.del_state,sched_del:s.sched_del,orders:[]});
+    map.get(s.consignee).orders.push(s);
+  });
+  return Array.from(map.values());
+}
+
+// ─── State ────────────────────────────────────────────────
+let state = {
+  view:        'loading',   // loading | setup | login | register | admin | driver
+  session:     null,        // { role:'admin'|'driver', name, id }
+  trucks:      [],          // raw truck array from Apps Script
+  users:       {},          // { username: { name, password_hash, loads:[] } }
+  adminTab:    'loads',     // loads | drivers
+  selectedLoad:null,
+  expandedUser:null,
+  toast:       null,
+  error:       null,
+};
+
+// ─── Render engine ────────────────────────────────────────
+function setState(patch) {
+  state = {...state, ...patch};
+  render();
+}
+
+function showToast(msg, type='ok') {
+  setState({toast:{msg,type}});
+  setTimeout(()=>setState({toast:null}), 2800);
+}
+
+// ─── Header ───────────────────────────────────────────────
+function renderHeader() {
+  const s = state.session;
+  return `
+  <div style="padding:24px 0 20px;border-bottom:1px solid #2a3040;margin-bottom:24px;
+              display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:44px;height:44px;background:linear-gradient(135deg,#f5a623,#e8732a);
+                  border-radius:11px;display:flex;align-items:center;justify-content:center;
+                  font-size:20px;flex-shrink:0">🚛</div>
+      <div>
+        <div class="mono" style="font-size:22px;text-transform:uppercase;letter-spacing:.03em">OTR Dispatch Portal</div>
+        <div style="font-size:12px;color:#7a8499;margin-top:2px">Over-The-Road Delivery Management</div>
+      </div>
+    </div>
+    ${s ? `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="badge ${s.role==='admin'?'badge-amber':'badge-blue'}">
+        ${s.role==='admin'?'⚡ Admin':'🚚 Driver'} · ${esc(s.name)}
+      </span>
+      <button class="btn-ghost" style="padding:7px 14px;font-size:12px" onclick="handleLogout()">Log out</button>
+    </div>` : ''}
+  </div>`;
+}
+
+// ─── Load card (shared admin + driver view) ───────────────
+function renderLoadCard(truck) {
+  const stops  = groupStops(truck.shipments);
+  const totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
+  const totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
+  const hasLocal = truck.ca_local_del && truck.ca_local_del !== '$0.00';
+
+  const routeBar = stops.map((st,i)=>`
+    <span class="route-dot" style="background:${STOP_COLORS[i%STOP_COLORS.length]}"></span>
+    <span style="font-size:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+                 color:${STOP_COLORS[i%STOP_COLORS.length]};white-space:nowrap">${esc(st.name)}</span>
+    ${i<stops.length-1?'<span style="color:#2a3040;font-size:14px">›</span>':''}`).join('');
+
+  const stopCards = stops.map((st,i)=>{
+    const color = STOP_COLORS[i%STOP_COLORS.length];
+    const sw = st.orders.reduce((a,s)=>a+s.weight,0);
+    const sp = st.orders.reduce((a,s)=>a+s.pallets,0);
+    const rows = st.orders.map(s=>`
+      <tr>
+        <td>
+          <div style="font-size:11px;color:#7a8499;font-family:'Barlow Condensed',sans-serif">${esc(s.po_num)}</div>
+          ${s.ship_ref?`<div style="font-size:11px;margin-top:2px;color:${
+            s.ship_ref.toUpperCase().includes('FROZEN')?'#a78bfa':
+            s.ship_ref.toUpperCase().includes('COLD')?'#5b8dee':'#7a8499'}">${esc(s.ship_ref)}</div>`:''}
+          ${s.notes?`<div style="margin-top:4px;font-size:10px;background:rgba(245,166,35,.1);
+                                border:1px solid rgba(245,166,35,.2);border-radius:4px;
+                                padding:2px 6px;color:#f5a623;display:inline-block">📌 ${esc(s.notes)}</div>`:''}
+        </td>
+        <td style="font-size:12px">${esc(s.shipper)}<br>
+          <span style="font-size:11px;color:#7a8499">${esc(s.or_city)}, ${esc(s.or_state)}</span></td>
+        <td style="font-size:11px;color:#7a8499">${esc(s.pickup_num)||'—'}</td>
+        <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-align:right">
+          ${s.weight>0?s.weight.toLocaleString():'—'}</td>
+        <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-align:right">
+          ${s.pallets>0?s.pallets:'—'}</td>
+      </tr>`).join('');
+
+    return `
+    <div class="stop-card">
+      <div class="stop-header" style="border-left-color:${color}"
+           onclick="toggleStop(${i})">
+        <div style="display:flex;gap:12px;flex:1;min-width:0">
+          <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;
+                      align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;
+                      font-weight:900;font-size:15px;color:#0d0f14;flex-shrink:0">${i+1}</div>
+          <div style="flex:1;min-width:0">
+            <div class="mono" style="font-size:17px;color:${color};text-transform:uppercase">${esc(st.name)}</div>
+            <div style="font-size:12px;color:#7a8499;margin-top:2px">
+              📍 ${esc(st.del_city)}, ${esc(st.del_state)} · 🗓 ${fmtDate(st.sched_del)}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-shrink:0;align-items:center">
+          ${[['Orders',st.orders.length],['Lbs',sw.toLocaleString()],['Pallets',sp]].map(([l,v])=>`
+          <div style="text-align:right">
+            <div class="mono" style="font-size:18px">${v}</div>
+            <div class="label" style="font-size:10px">${l}</div>
+          </div>`).join('')}
+          <span id="chev-${i}" style="color:#7a8499;font-size:16px;transition:transform .2s">▾</span>
+        </div>
+      </div>
+      <div class="stop-body" id="stop-body-${i}">
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr>
+              <th>PO / Reference</th><th>Shipper / Origin</th>
+              <th>Pickup #</th><th style="text-align:right">Lbs</th>
+              <th style="text-align:right">Pallets</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="page-fade">
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;
+                  gap:20px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid #2a3040;margin-bottom:16px">
+        <div>
+          <div class="label">Load Number</div>
+          <div class="mono" style="font-size:48px;color:#f5a623;line-height:1">${esc(truck.load_number)}</div>
+          <div style="color:#7a8499;font-size:13px;margin-top:4px">${esc(truck.carrier)}</div>
+        </div>
+        <div style="display:flex;gap:22px;flex-wrap:wrap">
+          ${[['Stops',stops.length],['Orders',(truck.shipments||[]).length],
+             ['Lbs',totalW.toLocaleString()],['Pallets',totalP]].map(([l,v])=>`
+          <div style="text-align:right">
+            <div class="mono" style="font-size:26px">${v}</div>
+            <div class="label">${l}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="surface" style="flex:1;min-width:130px">
+          <div class="label" style="margin-bottom:4px">Carrier Pay</div>
+          <div class="mono" style="font-size:20px;color:${truck.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'}">
+            ${esc(truck.carrier_pay)}</div>
+        </div>
+        ${hasLocal?`
+        <div class="surface" style="flex:1;min-width:130px">
+          <div class="label" style="margin-bottom:4px">Local Del</div>
+          <div class="mono" style="font-size:20px;color:#5b8dee">${esc(truck.ca_local_del)}</div>
+        </div>`:''}
+        <div class="surface" style="flex:1;min-width:130px">
+          <div class="label" style="margin-bottom:4px">Total Pay</div>
+          <div class="mono" style="font-size:20px;color:${truck.total_pay==='$0.00'?'#7a8499':'#f5a623'}">
+            ${esc(truck.total_pay)}</div>
+        </div>
+      </div>
+    </div>
+
+    ${stops.length>0?`
+    <div class="surface" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+                                 margin-bottom:16px;padding:12px 16px">
+      ${routeBar}
+    </div>`:''}
+
+    <div class="label" style="margin-bottom:10px">
+      ${stops.length} delivery stop${stops.length!==1?'s':''} — tap to expand
+    </div>
+    ${stopCards}
+  </div>`;
+}
+
+// ─── Admin: load grid ─────────────────────────────────────
+function renderAdminLoads() {
+  const active = state.trucks.filter(t=>(t.shipments||[]).length>0);
+  if (!active.length) return `<div class="surface" style="text-align:center;padding:40px;color:#7a8499">
+    No loads with shipments found. Make sure your Google Sheet is connected.</div>`;
+
+  const cards = active.map(t=>{
+    const stops    = groupStops(t.shipments);
+    const assigned = Object.entries(state.users).find(([,u])=>(u.loads||[]).includes(t.load_number));
+    return `
+    <div class="card-sm" style="cursor:pointer;border-left:3px solid ${assigned?'#3ecf8e':'#2a3040'};transition:border-color .15s"
+         onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div class="mono" style="font-size:26px;color:#f5a623;line-height:1">#${esc(t.load_number)}</div>
+        ${assigned
+          ? `<span class="badge badge-green">✓ ${esc(assigned[1].name)}</span>`
+          : `<span class="badge badge-muted">Unassigned</span>`}
+      </div>
+      <div style="font-size:12px;color:#7a8499;margin-bottom:6px">${esc(t.carrier)}</div>
+      <div style="display:flex;gap:12px;font-size:12px;align-items:center">
+        <span><span class="mono" style="font-size:14px">${stops.length}</span>
+              <span style="color:#7a8499"> stops</span></span>
+        <span><span class="mono" style="font-size:14px">${(t.shipments||[]).length}</span>
+              <span style="color:#7a8499"> orders</span></span>
+        <span style="margin-left:auto;color:${t.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'};
+                     font-family:'Barlow Condensed',sans-serif;font-weight:700">${esc(t.carrier_pay)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="label">${active.length} active loads</div>
+      <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshLoads()">↻ Refresh</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+      ${cards}
+    </div>
+  </div>`;
+}
+
+// ─── Admin: drivers panel ─────────────────────────────────
+function renderAdminDrivers() {
+  const entries = Object.entries(state.users);
+  const active  = state.trucks.filter(t=>(t.shipments||[]).length>0);
+
+  const driverCards = entries.map(([uid,u])=>{
+    const isExp = state.expandedUser === uid;
+    const checkList = active.map(t=>{
+      const checked = (u.loads||[]).includes(t.load_number);
+      const stops   = groupStops(t.shipments);
+      return `
+      <label class="check-item" style="border-left-color:${checked?'#3ecf8e':'transparent'}">
+        <input type="checkbox" ${checked?'checked':''} onchange="toggleLoad('${uid}','${esc(t.load_number)}',this.checked)">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mono" style="font-size:15px;color:#f5a623">#${esc(t.load_number)}</span>
+            <span style="font-size:11px;color:#7a8499">
+              ${stops.length} stop${stops.length!==1?'s':''} · ${(t.shipments||[]).length} orders</span>
+            <span style="margin-left:auto;font-size:12px;color:${checked?'#3ecf8e':'#7a8499'};
+                         font-family:'Barlow Condensed',sans-serif;font-weight:700">${esc(t.carrier_pay)}</span>
+          </div>
+          <div style="font-size:11px;color:#7a8499;margin-top:2px;overflow:hidden;
+                      text-overflow:ellipsis;white-space:nowrap">
+            ${stops.slice(0,3).map(s=>esc(s.name)).join(' › ')}${stops.length>3?` +${stops.length-3} more`:''}
+          </div>
+        </div>
+      </label>`;
+    }).join('');
+
+    const assignedBadges = (u.loads||[]).length>0 && !isExp
+      ? `<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+           ${(u.loads||[]).map(ln=>`<span class="badge badge-amber">#${esc(ln)}</span>`).join('')}
+         </div>` : '';
+
+    return `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:9px;background:rgba(91,141,238,.15);
+                      border:1px solid rgba(91,141,238,.3);display:flex;align-items:center;
+                      justify-content:center;font-family:'Barlow Condensed',sans-serif;
+                      font-weight:800;font-size:16px;color:#5b8dee">
+            ${esc(u.name.charAt(0).toUpperCase())}</div>
+          <div>
+            <div style="font-weight:600;font-size:15px">${esc(u.name)}</div>
+            <div style="font-size:12px;color:#7a8499">
+              @${esc(uid)} · ${(u.loads||[]).length} load${(u.loads||[]).length!==1?'s':''} assigned</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-info" style="font-size:12px;padding:6px 14px"
+                  onclick="setState({expandedUser:'${uid}'==='${state.expandedUser}'?null:'${uid}'})">
+            ${isExp?'Hide loads':'Assign Loads'}</button>
+          <button class="btn-danger" style="font-size:12px;padding:6px 14px"
+                  onclick="handleDeleteUser('${uid}')">Remove</button>
+        </div>
+      </div>
+      ${isExp?`
+      <div style="margin-top:14px;border-top:1px solid #2a3040;padding-top:14px">
+        <div class="label" style="margin-bottom:10px">Assign loads to ${esc(u.name)}</div>
+        <div class="scroll-area">${checkList}</div>
+      </div>`:''}
+      ${assignedBadges}
+    </div>`;
+  }).join('');
+
+  return `
+  <div>
+    <div class="label" style="margin-bottom:12px">${entries.length} registered driver${entries.length!==1?'s':''}</div>
+    ${entries.length===0
+      ? `<div class="surface" style="text-align:center;padding:40px 20px;color:#7a8499">
+           No drivers registered yet. Share the portal URL so drivers can create accounts.</div>`
+      : driverCards}
+  </div>`;
+}
+
+// ─── Main render ──────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  const notSetup = !APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE";
+  let html = renderHeader();
+
+  if (state.toast) {
+    html += `<div class="toast ${state.toast.type==='err'?'err':''}">${esc(state.toast.msg)}</div>`;
+  }
+
+  switch(state.view) {
+
+    case 'loading':
+      html += `<div class="loading-screen"><div class="spinner"></div>Connecting to Google Sheets…</div>`;
+      break;
+
+    case 'setup':
+      html += `
+      <div class="setup-banner">
+        <h3>⚙️ Setup Required</h3>
+        <p>The Apps Script URL hasn't been configured yet. Open <code>index.html</code>,
+           find the line <code>const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE"</code>
+           and replace it with your deployed Apps Script URL. See <code>SETUP.md</code> for full instructions.</p>
+      </div>`;
+      break;
+
+    case 'login':
+      html += `
+      <div class="page-fade" style="max-width:420px;margin:0 auto">
+        ${notSetup?`<div class="setup-banner"><h3>⚙️ Apps Script not configured</h3>
+          <p>Replace <code>YOUR_APPS_SCRIPT_URL_HERE</code> in index.html with your deployment URL.</p></div>`:''}
+        <div class="card">
+          <div class="label" style="margin-bottom:16px">Sign In</div>
+          <input id="li-user" placeholder="Username" style="margin-bottom:10px"
+                 onkeydown="if(event.key==='Enter')handleLogin()">
+          <input id="li-pass" type="password" placeholder="Password" style="margin-bottom:14px"
+                 onkeydown="if(event.key==='Enter')handleLogin()">
+          <button class="btn-primary" style="width:100%;padding:12px" onclick="handleLogin()">Sign In</button>
+          <div class="divider"></div>
+          <button class="btn-ghost" style="width:100%" onclick="setState({view:'register'})">
+            Create Driver Account</button>
+        </div>
+        <div style="text-align:center;margin-top:14px;font-size:12px;color:#7a8499">
+          Admin login: username <span style="color:#f5a623;font-family:'Barlow Condensed',sans-serif;font-weight:700">admin</span> + your dispatch password
+        </div>
+      </div>`;
+      break;
+
+    case 'register':
+      html += `
+      <div class="page-fade" style="max-width:420px;margin:0 auto">
+        <div class="card">
+          <div class="label" style="margin-bottom:16px">Create Driver Account</div>
+          <input id="reg-name" placeholder="Full name" style="margin-bottom:10px"
+                 oninput="document.getElementById('reg-preview').textContent=this.value.toLowerCase().replace(/\\s+/g,'.')">
+          <input id="reg-pass" type="password" placeholder="Password" style="margin-bottom:10px">
+          <input id="reg-pass2" type="password" placeholder="Confirm password" style="margin-bottom:14px"
+                 onkeydown="if(event.key==='Enter')handleRegister()">
+          <div style="font-size:12px;color:#7a8499;margin-bottom:14px;background:#1e2330;
+                      border-radius:8px;padding:10px 14px">
+            Your username will be:
+            <span id="reg-preview" style="color:#f5a623;font-family:'Barlow Condensed',sans-serif;font-weight:700">…</span>
+          </div>
+          <button class="btn-primary" style="width:100%;padding:12px" onclick="handleRegister()">Create Account</button>
+          <div class="divider"></div>
+          <button class="btn-ghost" style="width:100%" onclick="setState({view:'login'})">Back to Sign In</button>
+        </div>
+      </div>`;
+      break;
+
+    case 'admin':
+      if (state.selectedLoad) {
+        const truck = state.trucks.find(t=>t.load_number===state.selectedLoad);
+        html += `
+        <button class="btn-ghost" style="margin-bottom:16px;font-size:12px"
+                onclick="setState({selectedLoad:null})">← Back to all loads</button>
+        ${truck ? renderLoadCard(truck) : '<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
+      } else {
+        html += `
+        <div class="tab-bar">
+          <button class="tab ${state.adminTab==='loads'?'active':''}"
+                  onclick="setState({adminTab:'loads'})">All Loads</button>
+          <button class="tab ${state.adminTab==='drivers'?'active':''}"
+                  onclick="setState({adminTab:'drivers'})">Drivers &amp; Assignments</button>
+        </div>
+        ${state.adminTab==='loads' ? renderAdminLoads() : renderAdminDrivers()}`;
+      }
+      break;
+
+    case 'driver':
+      if (state.selectedLoad) {
+        const truck = state.trucks.find(t=>t.load_number===state.selectedLoad);
+        html += `
+        <button class="btn-ghost" style="margin-bottom:16px;font-size:12px"
+                onclick="setState({selectedLoad:null})">← My Loads</button>
+        ${truck ? renderLoadCard(truck) : '<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
+      } else {
+        const u = state.users[state.session.id];
+        const myLoads = (u?.loads||[]).map(ln=>state.trucks.find(t=>t.load_number===ln)).filter(Boolean);
+        html += `
+        <div class="page-fade">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div class="label">Your assigned loads</div>
+            <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshAll()">↻ Refresh</button>
+          </div>
+          ${myLoads.length===0
+            ? `<div class="surface" style="text-align:center;padding:48px 20px;color:#7a8499">
+                <div style="font-size:36px;margin-bottom:12px">📋</div>
+                <div class="mono" style="font-size:18px;text-transform:uppercase;margin-bottom:6px">No loads assigned yet</div>
+                <div style="font-size:13px">Your dispatcher will assign your loads here. Check back soon.</div>
+               </div>`
+            : myLoads.map(t=>{
+                const stops = groupStops(t.shipments);
+                const tw    = (t.shipments||[]).reduce((a,s)=>a+s.weight,0);
+                return `
+                <div class="card" style="cursor:pointer;border-left:3px solid #f5a623;margin-bottom:12px"
+                     onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                      <div class="mono" style="font-size:38px;color:#f5a623;line-height:1">#${esc(t.load_number)}</div>
+                      <div style="font-size:12px;color:#7a8499;margin-top:4px">${esc(t.carrier)}</div>
+                    </div>
+                    <div style="display:flex;gap:18px;flex-wrap:wrap">
+                      ${[['Stops',stops.length],['Orders',(t.shipments||[]).length],
+                         ['Lbs',tw.toLocaleString()],['Pay',t.total_pay]].map(([l,v])=>`
+                      <div style="text-align:right">
+                        <div class="mono" style="font-size:${l==='Pay'?'16px':'20px'};color:${l==='Pay'?'#3ecf8e':'inherit'}">${v}</div>
+                        <div class="label">${l}</div>
+                      </div>`).join('')}
+                    </div>
+                  </div>
+                  <div style="margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    ${stops.slice(0,4).map((s,i)=>`
+                      <span class="route-dot" style="background:${STOP_COLORS[i%STOP_COLORS.length]}"></span>
+                      <span style="font-size:11px;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+                                   color:${STOP_COLORS[i%STOP_COLORS.length]}">${esc(s.name)}</span>
+                      ${i<Math.min(stops.length,4)-1?'<span style="color:#2a3040;font-size:12px">›</span>':''}`).join('')}
+                    ${stops.length>4?`<span style="font-size:11px;color:#7a8499">+${stops.length-4} more</span>`:''}
+                  </div>
+                </div>`;
+              }).join('')}
+        </div>`;
+      }
+      break;
+  }
+
+  app.innerHTML = html;
+}
+
+// ─── Event handlers ───────────────────────────────────────
+
+function toggleStop(i) {
+  const body = document.getElementById('stop-body-'+i);
+  const chev = document.getElementById('chev-'+i);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (chev) chev.style.transform = open ? 'rotate(180deg)' : 'none';
+}
+
+function handleLogout() {
+  setState({session:null, view:'login', selectedLoad:null, expandedUser:null});
+}
+
+async function handleLogin() {
+  const username = (document.getElementById('li-user')?.value||'').trim().toLowerCase();
+  const password =  document.getElementById('li-pass')?.value||'';
+  if (!username || !password) return showToast('Enter username and password','err');
+
+  if (username === 'admin') {
+    if (password === ADMIN_PASSWORD) {
+      await refreshAll('admin');
+      setState({session:{role:'admin',name:'Admin'}, view:'admin'});
+    } else {
+      showToast('Incorrect admin password','err');
+    }
+    return;
+  }
+
+  const u = state.users[username];
+  if (!u) return showToast('Username not found','err');
+  const hash = await hashPassword(password);
+  if (hash !== u.password_hash) return showToast('Incorrect password','err');
+
+  await refreshAll('driver');
+  setState({session:{role:'driver', name:u.name, id:username}, view:'driver'});
+}
+
+async function handleRegister() {
+  const name  = (document.getElementById('reg-name')?.value||'').trim();
+  const pass  =  document.getElementById('reg-pass')?.value||'';
+  const pass2 =  document.getElementById('reg-pass2')?.value||'';
+  if (!name || !pass) return showToast('Name and password required','err');
+  if (pass !== pass2) return showToast('Passwords do not match','err');
+
+  const username = name.toLowerCase().replace(/\s+/g,'.');
+  if (username === 'admin') return showToast('That username is reserved','err');
+
+  const hash = await hashPassword(pass);
+  try {
+    await api('saveUser', {username, password_hash:hash, name});
+    showToast('Account created! You can now log in.');
+    // Refresh users so login works immediately
+    const res = await api('getUsers');
+    setState({users: res.users||{}, view:'login'});
+  } catch(e) {
+    showToast(e.message||'Error creating account','err');
+  }
+}
+
+async function handleDeleteUser(uid) {
+  try {
+    await api('deleteUser', {username:uid});
+    const res = await api('getUsers');
+    setState({users:res.users||{}, expandedUser:null});
+    showToast('Driver removed');
+  } catch(e) {
+    showToast(e.message||'Error removing driver','err');
+  }
+}
+
+async function toggleLoad(uid, loadNum, checked) {
+  const u = state.users[uid];
+  if (!u) return;
+  let loads = [...(u.loads||[])];
+  if (checked && !loads.includes(loadNum)) loads.push(loadNum);
+  if (!checked) loads = loads.filter(l=>l!==loadNum);
+  try {
+    await api('assignLoads', {username:uid, loads});
+    const res = await api('getUsers');
+    setState({users:res.users||{}});
+    showToast(checked ? `Load ${loadNum} assigned` : `Load ${loadNum} removed`);
+  } catch(e) {
+    showToast(e.message||'Error saving assignment','err');
+  }
+}
+
+async function refreshLoads() {
+  try {
+    const res = await api('getLoads');
+    setState({trucks: res.trucks||[]});
+    showToast('Loads refreshed from Google Sheets');
+  } catch(e) {
+    showToast('Could not refresh loads','err');
+  }
+}
+
+async function refreshAll(targetView) {
+  try {
+    const [loadsRes, usersRes] = await Promise.all([api('getLoads'), api('getUsers')]);
+    setState({trucks: loadsRes.trucks||[], users: usersRes.users||{}});
+  } catch(e) {
+    // Will surface in UI
+  }
+}
+
+// ─── XSS escape ───────────────────────────────────────────
+function esc(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Boot ─────────────────────────────────────────────────
+(async function boot() {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
+    setState({view:'setup'});
+    return;
+  }
+  render(); // show loading spinner
+  try {
+    const [loadsRes, usersRes] = await Promise.all([api('getLoads'), api('getUsers')]);
+    setState({
+      trucks: loadsRes.trucks||[],
+      users:  usersRes.users||{},
+      view:   'login'
+    });
+  } catch(e) {
+    setState({view:'login'});
+  }
+})();
+</script>
+</body>
+</html>
