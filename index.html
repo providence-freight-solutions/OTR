@@ -165,7 +165,7 @@ async function hashPassword(pw) {
 
 // ─── Apps Script API caller ───────────────────────────────
 async function api(action, body={}) {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec") {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
     throw new Error("SETUP_REQUIRED");
   }
   const url = APPS_SCRIPT_URL + "?action=" + action;
@@ -501,7 +501,7 @@ function renderAdminDrivers() {
 // ─── Main render ──────────────────────────────────────────
 function render() {
   const app = document.getElementById('app');
-  const notSetup = !APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec";
+  const notSetup = !APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE";
   let html = renderHeader();
 
   if (state.toast) {
@@ -519,7 +519,7 @@ function render() {
       <div class="setup-banner">
         <h3>⚙️ Setup Required</h3>
         <p>The Apps Script URL hasn't been configured yet. Open <code>index.html</code>,
-           find the line <code>const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec"</code>
+           find the line <code>const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE"</code>
            and replace it with your deployed Apps Script URL. See <code>SETUP.md</code> for full instructions.</p>
       </div>`;
       break;
@@ -528,7 +528,7 @@ function render() {
       html += `
       <div class="page-fade" style="max-width:420px;margin:0 auto">
         ${notSetup?`<div class="setup-banner"><h3>⚙️ Apps Script not configured</h3>
-          <p>Replace <code>https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec</code> in index.html with your deployment URL.</p></div>`:''}
+          <p>Replace <code>YOUR_APPS_SCRIPT_URL_HERE</code> in index.html with your deployment URL.</p></div>`:''}
         <div class="card">
           <div class="label" style="margin-bottom:16px">Sign In</div>
           <input id="li-user" placeholder="Username" style="margin-bottom:10px"
@@ -762,7 +762,7 @@ function esc(str) {
 
 // ─── Boot ─────────────────────────────────────────────────
 (async function boot() {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec") {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
     setState({view:'setup'});
     return;
   }
