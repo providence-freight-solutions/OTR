@@ -163,16 +163,17 @@ async function hashPassword(pw) {
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-// ─── Apps Script API caller ───────────────────────────────
-async function api(action, body={}) {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
+// ─── Apps Script API caller (GET only — avoids CORS issues) ──
+async function api(action, params={}) {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec") {
     throw new Error("SETUP_REQUIRED");
   }
-  const url = APPS_SCRIPT_URL + "?action=" + action;
+  // Build query string — all values URL-encoded
+  const qs = new URLSearchParams({action, ...params}).toString();
+  const url = APPS_SCRIPT_URL + "?" + qs;
   const res = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({action, ...body})
+    method: "GET",
+    redirect: "follow"   // Apps Script redirects to a content URL
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -501,7 +502,7 @@ function renderAdminDrivers() {
 // ─── Main render ──────────────────────────────────────────
 function render() {
   const app = document.getElementById('app');
-  const notSetup = !APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE";
+  const notSetup = !APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec";
   let html = renderHeader();
 
   if (state.toast) {
@@ -519,7 +520,7 @@ function render() {
       <div class="setup-banner">
         <h3>⚙️ Setup Required</h3>
         <p>The Apps Script URL hasn't been configured yet. Open <code>index.html</code>,
-           find the line <code>const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE"</code>
+           find the line <code>const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec"</code>
            and replace it with your deployed Apps Script URL. See <code>SETUP.md</code> for full instructions.</p>
       </div>`;
       break;
@@ -528,7 +529,7 @@ function render() {
       html += `
       <div class="page-fade" style="max-width:420px;margin:0 auto">
         ${notSetup?`<div class="setup-banner"><h3>⚙️ Apps Script not configured</h3>
-          <p>Replace <code>YOUR_APPS_SCRIPT_URL_HERE</code> in index.html with your deployment URL.</p></div>`:''}
+          <p>Replace <code>https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec</code> in index.html with your deployment URL.</p></div>`:''}
         <div class="card">
           <div class="label" style="margin-bottom:16px">Sign In</div>
           <input id="li-user" placeholder="Username" style="margin-bottom:10px"
@@ -697,7 +698,7 @@ async function handleRegister() {
 
   const hash = await hashPassword(pass);
   try {
-    await api('saveUser', {username, password_hash:hash, name});
+    await api('saveUser', {username, password_hash:hash});
     showToast('Account created! You can now log in.');
     // Refresh users so login works immediately
     const res = await api('getUsers');
@@ -725,7 +726,7 @@ async function toggleLoad(uid, loadNum, checked) {
   if (checked && !loads.includes(loadNum)) loads.push(loadNum);
   if (!checked) loads = loads.filter(l=>l!==loadNum);
   try {
-    await api('assignLoads', {username:uid, loads});
+    await api('assignLoads', {username:uid, loads: loads.join(',')});
     const res = await api('getUsers');
     setState({users:res.users||{}});
     showToast(checked ? `Load ${loadNum} assigned` : `Load ${loadNum} removed`);
@@ -762,7 +763,7 @@ function esc(str) {
 
 // ─── Boot ─────────────────────────────────────────────────
 (async function boot() {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") {
+  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec") {
     setState({view:'setup'});
     return;
   }
