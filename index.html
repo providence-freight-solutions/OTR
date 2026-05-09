@@ -502,7 +502,6 @@ function renderAdminDrivers() {
 // ─── Main render ──────────────────────────────────────────
 function render() {
   const app = document.getElementById('app');
-  const notSetup = !APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec";
   let html = renderHeader();
 
   if (state.toast) {
@@ -763,9 +762,6 @@ function esc(str) {
 
 // ─── Boot ─────────────────────────────────────────────────
 (async function boot() {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzLP5KYq-7tFM7wlF_ADnF9GKrVlVe_xmps0n4o6pTsCelG54AA9yWA2xvkyWDcHGPsRw/exec") {
-    setState({view:'setup'});
-    return;
   }
   render(); // show loading spinner
   try {
