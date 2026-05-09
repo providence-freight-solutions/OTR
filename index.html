@@ -526,14 +526,18 @@ async function toggleLoad(uid, loadNum, checked) {
   const u = state.users[uid];
   if (!u) return;
   let loads = [...(u.loads||[])];
-  if (checked&&!loads.includes(loadNum)) loads.push(loadNum);
-  if (!checked) loads = loads.filter(l=>l!==loadNum);
+  if (checked && !loads.includes(loadNum)) loads.push(loadNum);
+  if (!checked) loads = loads.filter(l => l !== loadNum);
+  // Use | as separator to avoid comma encoding issues in URL params
+  const loadsStr = loads.join('|');
   try {
-    await api('assignLoads',{username:uid,loads:loads.join(',')});
+    await api('assignLoads', {username: uid, loads: loadsStr});
     const res = await api('getUsers');
-    setState({users:res.users||{}});
-    showToast(checked?`Load ${loadNum} assigned`:`Load ${loadNum} removed`);
-  } catch(e) { showToast(e.message||'Error saving assignment','err'); }
+    setState({users: res.users||{}});
+    showToast(checked ? `Load ${loadNum} assigned` : `Load ${loadNum} removed`);
+  } catch(e) {
+    showToast(e.message || 'Error saving assignment', 'err');
+  }
 }
 
 async function refreshLoads() {
