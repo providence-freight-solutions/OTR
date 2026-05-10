@@ -487,8 +487,14 @@ function render() {
                 <div style="font-size:13px">Your dispatcher will assign your loads here. Check back soon.</div>
                </div>`
             : myLoads.map(t=>{
-                const stops = groupStops(t.shipments);
-                const tw = (t.shipments||[]).reduce((a,s)=>a+s.weight,0);
+                const allStopsForCard = groupStops(t.shipments);
+                const activeNamesForCard = t.active_stops && t.active_stops.length > 0 ? t.active_stops : null;
+                const stops = activeNamesForCard ? allStopsForCard.filter(s=>activeNamesForCard.includes(s.name)) : allStopsForCard;
+                const activeShipments = activeNamesForCard
+                  ? (t.shipments||[]).filter(s=>activeNamesForCard.includes(s.consignee))
+                  : (t.shipments||[]);
+                const tw = activeShipments.reduce((a,s)=>a+s.weight,0);
+                const activeOrders = activeShipments.length;
                 return `
                 <div class="card" style="cursor:pointer;border-left:3px solid #f5a623;margin-bottom:12px" onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
                   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
@@ -497,7 +503,7 @@ function render() {
                       <div style="font-size:12px;color:#7a8499;margin-top:4px">${esc(t.carrier)}</div>
                     </div>
                     <div style="display:flex;gap:18px;flex-wrap:wrap">
-                      ${[['Stops',stops.length],['Orders',(t.shipments||[]).length],['Lbs',tw.toLocaleString()],['Pay',t.total_pay]].map(([l,v])=>`
+                      ${[['Stops',stops.length],['Orders',activeOrders],['Lbs',tw.toLocaleString()],['Pay',t.total_pay]].map(([l,v])=>`
                       <div style="text-align:right">
                         <div class="mono" style="font-size:${l==='Pay'?'16px':'20px'};color:${l==='Pay'?'#3ecf8e':'inherit'}">${v}</div>
                         <div class="label">${l}</div>
