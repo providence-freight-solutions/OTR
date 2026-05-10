@@ -303,8 +303,8 @@ function renderAdminDrivers() {
       const checked = (u.loads||[]).includes(t.load_number);
       const stops   = groupStops(t.shipments);
       return `
-      <label class="check-item" style="border-left-color:${checked?'#3ecf8e':'transparent'}">
-        <input type="checkbox" ${checked?'checked':''} onchange="toggleLoad('${uid}','${esc(t.load_number)}',this.checked)">
+      <label class="check-item" style="border-left-color:${checked?'#3ecf8e':'transparent'}" id="ci-${uid}-${esc(t.load_number)}">
+        <input type="checkbox" ${checked?'checked':''} id="chk-${uid}-${esc(t.load_number)}" onchange="markPending('${uid}','${esc(t.load_number)}',this.checked)">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px">
             <span class="mono" style="font-size:15px;color:#f5a623">#${esc(t.load_number)}</span>
@@ -335,8 +335,14 @@ function renderAdminDrivers() {
         </div>
       </div>
       ${isExp?`<div style="margin-top:14px;border-top:1px solid #2a3040;padding-top:14px">
-        <div class="label" style="margin-bottom:10px">Assign loads to ${esc(u.name)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="label">Assign loads to ${esc(u.name)}</div>
+          <button class="btn-success" style="font-size:12px;padding:7px 18px" onclick="saveLoads('${uid}')">✓ Save</button>
+        </div>
         <div class="scroll-area">${checkList}</div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end">
+          <button class="btn-success" style="font-size:12px;padding:7px 18px" onclick="saveLoads('${uid}')">✓ Save Assignments</button>
+        </div>
       </div>`:''}
       ${assignedBadges}
     </div>`;
@@ -522,21 +528,30 @@ async function handleDeleteUser(uid) {
   } catch(e) { showToast(e.message||'Error removing driver','err'); }
 }
 
-async function toggleLoad(uid, loadNum, checked) {
+// markPending just updates the visual state locally — no API call yet
+function markPending(uid, loadNum, checked) {
+  const item = document.getElementById('ci-' + uid + '-' + loadNum);
+  if (item) item.style.borderLeftColor = checked ? '#f5a623' : 'transparent';
+}
+
+// saveLoads reads all checkboxes for this user and sends in one API call
+async function saveLoads(uid) {
   const u = state.users[uid];
   if (!u) return;
-  let loads = [...(u.loads||[])];
-  if (checked && !loads.includes(loadNum)) loads.push(loadNum);
-  if (!checked) loads = loads.filter(l => l !== loadNum);
-  // Use | as separator to avoid comma encoding issues in URL params
-  const loadsStr = loads.join('|');
+  const active = state.trucks.filter(t=>(t.shipments||[]).length>0);
+  const loads = active
+    .filter(t => {
+      const chk = document.getElementById('chk-' + uid + '-' + t.load_number);
+      return chk && chk.checked;
+    })
+    .map(t => t.load_number);
   try {
-    await api('assignLoads', {username: uid, loads: loadsStr});
+    await api('assignLoads', {username: uid, loads: loads.join('|')});
     const res = await api('getUsers');
     setState({users: res.users||{}});
-    showToast(checked ? `Load ${loadNum} assigned` : `Load ${loadNum} removed`);
+    showToast(`Assignments saved for ${u.name}`);
   } catch(e) {
-    showToast(e.message || 'Error saving assignment', 'err');
+    showToast(e.message || 'Error saving assignments', 'err');
   }
 }
 
