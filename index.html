@@ -171,7 +171,7 @@ function renderHeader() {
       </div>
     </div>
     ${s?`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span class="badge ${s.role==='admin'?'badge-amber':'badge-blue'}">${s.role==='admin'?'⚡ Admin':'🚚 Driver'} · ${esc(s.name)}</span>
+      <span class="badge ${s.role==='admin'?'badge-amber':'badge-blue'}">${s.role==='admin'?'⚡ Admin':'🚛 Carrier'} · ${esc(s.name)}</span>
       <button class="btn-ghost" style="padding:7px 14px;font-size:12px" onclick="handleLogout()">Log out</button>
     </div>`:''}
   </div>`;
@@ -198,6 +198,8 @@ function renderLoadCard(truck, isAdmin=false) {
     ${i<routeStops.length-1?'<span style="color:#2a3040;font-size:14px">›</span>':''}`;
   }).join('');
 
+  // Track sequential display number for active stops (driver sees 1,2 not 1,4)
+  let driverStopNum = 0;
   const stopCards = allStops.map((st,i)=>{
     const isActive = !activeNames || activeNames.includes(st.name);
     const color = isActive ? STOP_COLORS[i%STOP_COLORS.length] : '#3a4050';
@@ -232,7 +234,7 @@ function renderLoadCard(truck, isAdmin=false) {
       ${adminCheck}
       <div class="stop-header" style="border-left-color:${color}" onclick="toggleStop(${i})">
         <div style="display:flex;gap:12px;flex:1;min-width:0">
-          <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;color:#0d0f14;flex-shrink:0">${i+1}</div>
+          <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;color:#0d0f14;flex-shrink:0">${isAdmin ? i+1 : (isActive ? ++driverStopNum : i+1)}</div>
           <div style="flex:1;min-width:0">
             <div class="mono" style="font-size:17px;color:${color};text-transform:uppercase">${esc(st.name)}</div>
             <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:10px">
@@ -391,9 +393,9 @@ function renderAdminDrivers() {
   }).join('');
   return `
   <div>
-    <div class="label" style="margin-bottom:12px">${entries.length} registered driver${entries.length!==1?'s':''}</div>
+    <div class="label" style="margin-bottom:12px">${entries.length} registered carrier${entries.length!==1?'s':''}</div>
     ${entries.length===0
-      ? `<div class="surface" style="text-align:center;padding:40px 20px;color:#7a8499">No drivers registered yet. Share the portal URL so drivers can create accounts.</div>`
+      ? `<div class="surface" style="text-align:center;padding:40px 20px;color:#7a8499">No carriers registered yet. Share the portal URL so carriers can create accounts.</div>`
       : driverCards}
   </div>`;
 }
@@ -417,7 +419,7 @@ function render() {
           <input id="li-pass" type="password" placeholder="Password" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')handleLogin()">
           <button class="btn-primary" style="width:100%;padding:12px" onclick="handleLogin()">Sign In</button>
           <div class="divider"></div>
-          <button class="btn-ghost" style="width:100%" onclick="setState({view:'register'})">Create Driver Account</button>
+          <button class="btn-ghost" style="width:100%" onclick="setState({view:'register'})">Create Carrier Account</button>
         </div>
 
       </div>`;
@@ -427,7 +429,7 @@ function render() {
       html += `
       <div class="page-fade" style="max-width:420px;margin:0 auto">
         <div class="card">
-          <div class="label" style="margin-bottom:16px">Create Driver Account</div>
+          <div class="label" style="margin-bottom:16px">Create Carrier Account</div>
           <input id="reg-name" placeholder="Full name" style="margin-bottom:10px" oninput="document.getElementById('reg-preview').textContent=this.value.toLowerCase().replace(/\\s+/g,'.')">
           <input id="reg-pass" type="password" placeholder="Password" style="margin-bottom:10px">
           <input id="reg-pass2" type="password" placeholder="Confirm password" style="margin-bottom:14px" onkeydown="if(event.key==='Enter')handleRegister()">
@@ -454,7 +456,7 @@ function render() {
         html += `
         <div class="tab-bar">
           <button class="tab ${state.adminTab==='loads'?'active':''}" onclick="setState({adminTab:'loads'})">All Loads</button>
-          <button class="tab ${state.adminTab==='drivers'?'active':''}" onclick="setState({adminTab:'drivers'})">Drivers &amp; Assignments</button>
+          <button class="tab ${state.adminTab==='drivers'?'active':''}" onclick="setState({adminTab:'drivers'})">Carriers &amp; Assignments</button>
         </div>
         ${state.adminTab==='loads'?renderAdminLoads():renderAdminDrivers()}`;
       }
@@ -475,7 +477,7 @@ function render() {
         html += `
         <div class="page-fade">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <div class="label">Your assigned loads</div>
+            <div class="label">Your Assigned Loads</div>
             <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshAll()">↻ Refresh</button>
           </div>
           ${myLoads.length===0
@@ -591,14 +593,20 @@ async function saveLoads(uid) {
       return chk && chk.checked;
     })
     .map(t => t.load_number);
-  // Use SPACE as separator — survives URLSearchParams encoding as + which Apps Script decodes fine
-  // Then join with a rare delimiter that won't appear in load numbers
-  const loadsStr = loads.join('~');
+
   try {
-    await api('assignLoads', {username: uid, loads: loadsStr, count: loads.length});
-    const res = await api('getUsers');
-    setState({users: res.users||{}});
-    showToast(`Assignments saved for ${u.name} (${loads.length} load${loads.length!==1?'s':''})`);
+    // Build URL manually — send each load as load0, load1, load2...
+    // This completely avoids separator/encoding issues
+    let url = APPS_SCRIPT_URL + '?action=assignLoads&username=' + encodeURIComponent(uid);
+    url += '&count=' + loads.length;
+    loads.forEach((ln, i) => { url += '&load' + i + '=' + encodeURIComponent(ln); });
+    const res = await fetch(url, {method:'GET', redirect:'follow'});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const usersRes = await api('getUsers');
+    setState({users: usersRes.users||{}});
+    showToast('Assignments saved for ' + u.name + ' (' + loads.length + ' load' + (loads.length!==1?'s':'') + ')');
   } catch(e) {
     showToast(e.message || 'Error saving assignments', 'err');
   }
