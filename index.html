@@ -314,10 +314,10 @@ function renderAdminLoads() {
     const stops    = groupStops(t.shipments);
     const assigned = Object.entries(state.users).find(([,u])=>(u.loads||[]).includes(t.load_number));
     return `
-    <div class="card-sm" style="cursor:pointer;border-left:3px solid ${assigned?'#3ecf8e':'#2a3040'}" onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
+    <div class="card-sm" style="cursor:pointer;border-left:3px solid ${assigned?'#a78bfa':'#2a3040'}" onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
         <div class="mono" style="font-size:26px;color:#f5a623;line-height:1">#${esc(t.load_number)}</div>
-        ${assigned?`<span class="badge badge-green">✓ ${esc(assigned[1].name)}</span>`:`<span class="badge badge-muted">Unassigned</span>`}
+        ${assigned?`<span class="badge badge-purple">✓ ${esc(assigned[1].name)}</span>`:`<span class="badge badge-muted">Unassigned</span>`}
       </div>
       <div style="font-size:12px;color:#7a8499;margin-bottom:6px">${esc(t.carrier)}</div>
       <div style="display:flex;gap:12px;font-size:12px;align-items:center">
@@ -699,8 +699,8 @@ function downloadPDF(loadNum) {
 
   const allStops    = groupStops(truck.shipments);
   const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
-  const isAdminView = state.session?.role === 'admin';
-  const stops       = isAdminView ? allStops : (activeNames ? allStops.filter(s => activeNames.includes(s.name)) : allStops);
+  // Both admin and carrier PDFs show only the active (visible) stops
+  const stops       = activeNames ? allStops.filter(s => activeNames.includes(s.name)) : allStops;
 
   const totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
   const totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
