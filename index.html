@@ -449,7 +449,7 @@ function render() {
         html += `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
           <button class="btn-ghost" style="font-size:12px" onclick="setState({selectedLoad:null})">← Back to all loads</button>
-          <button class="btn-info" style="font-size:12px;padding:7px 16px" onclick="downloadPDF('${state.selectedLoad}')">⬇ Download PDF</button>
+          <button class="btn-info" style="font-size:12px;padding:7px 16px" onclick="downloadPDF(state.selectedLoad)">⬇ Download PDF</button>
         </div>
         ${truck?renderLoadCard(truck, true):'<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
       } else {
@@ -468,7 +468,7 @@ function render() {
         html += `
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
           <button class="btn-ghost" style="font-size:12px" onclick="setState({selectedLoad:null})">← My Loads</button>
-          <button class="btn-info" style="font-size:12px;padding:7px 16px" onclick="downloadPDF('${state.selectedLoad}')">⬇ Download PDF</button>
+          <button class="btn-info" style="font-size:12px;padding:7px 16px" onclick="downloadPDF(state.selectedLoad)">⬇ Download PDF</button>
         </div>
         ${truck?renderLoadCard(truck):'<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
       } else {
