@@ -175,21 +175,34 @@ function renderHeader() {
   </div>`;
 }
 
-function renderLoadCard(truck) {
-  const stops  = groupStops(truck.shipments);
+function renderLoadCard(truck, isAdmin=false) {
+  const allStops = groupStops(truck.shipments);
+  // active_stops is an array of stop names admin has enabled; empty = all active
+  const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
+  // Admin sees ALL stops with checkboxes; driver sees only active stops (renumbered)
+  const stops = isAdmin ? allStops : (activeNames ? allStops.filter(st=>activeNames.includes(st.name)) : allStops);
   const totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
   const totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
   const hasLocal = truck.ca_local_del && truck.ca_local_del !== '$0.00';
 
-  const routeBar = stops.map((st,i)=>`
-    <span class="route-dot" style="background:${STOP_COLORS[i%STOP_COLORS.length]}"></span>
-    <span style="font-size:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:${STOP_COLORS[i%STOP_COLORS.length]};white-space:nowrap">${esc(st.name)}</span>
-    ${i<stops.length-1?'<span style="color:#2a3040;font-size:14px">›</span>':''}`).join('');
+  // Route bar: admin shows all (dimmed if inactive), driver shows only active
+  const routeStops = isAdmin ? allStops : stops;
+  const routeBar = routeStops.map((st,i)=>{
+    const isAct = !activeNames || activeNames.includes(st.name);
+    const col   = isAct ? STOP_COLORS[i%STOP_COLORS.length] : '#3a4050';
+    return `
+    <span class="route-dot" style="background:${col};opacity:${isAct?1:0.4}"></span>
+    <span style="font-size:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:${col};white-space:nowrap;opacity:${isAct?1:0.4}">${esc(st.name)}</span>
+    ${i<routeStops.length-1?'<span style="color:#2a3040;font-size:14px">›</span>':''}`;
+  }).join('');
 
-  const stopCards = stops.map((st,i)=>{
-    const color = STOP_COLORS[i%STOP_COLORS.length];
+  const stopCards = allStops.map((st,i)=>{
+    const isActive = !activeNames || activeNames.includes(st.name);
+    const color = isActive ? STOP_COLORS[i%STOP_COLORS.length] : '#3a4050';
     const sw = st.orders.reduce((a,s)=>a+s.weight,0);
     const sp = st.orders.reduce((a,s)=>a+s.pallets,0);
+    // Driver only sees active stops — skip rendering inactive
+    if (!isAdmin && !isActive) return '';
     const rows = st.orders.map(s=>`
       <tr>
         <td>
@@ -202,8 +215,19 @@ function renderLoadCard(truck) {
         <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-align:right">${s.weight>0?s.weight.toLocaleString():'—'}</td>
         <td style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-align:right">${s.pallets>0?s.pallets:'—'}</td>
       </tr>`).join('');
+    // Admin checkbox for stop visibility
+    const adminCheck = isAdmin ? `
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(0,0,0,.2);border-bottom:1px solid #2a3040">
+        <input type="checkbox" id="stop-chk-${esc(truck.load_number)}-${i}" ${isActive?'checked':''}
+               style="width:16px;height:16px;accent-color:#f5a623;cursor:pointer"
+               onchange="markStopPending('${esc(truck.load_number)}',${i},this.checked)">
+        <label for="stop-chk-${esc(truck.load_number)}-${i}" style="font-size:12px;color:#7a8499;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase">
+          ${isActive ? 'Visible to driver' : 'Hidden from driver'}
+        </label>
+      </div>` : '';
     return `
-    <div class="stop-card">
+    <div class="stop-card" style="opacity:${!isAdmin && !isActive ? '0.4' : '1'}">
+      ${adminCheck}
       <div class="stop-header" style="border-left-color:${color}" onclick="toggleStop(${i})">
         <div style="display:flex;gap:12px;flex:1;min-width:0">
           <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;color:#0d0f14;flex-shrink:0">${i+1}</div>
@@ -251,6 +275,14 @@ function renderLoadCard(truck) {
           <div class="mono" style="font-size:28px;color:${truck.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'}">${esc(truck.carrier_pay)}</div>
       </div>
     </div>
+    ${isAdmin ? `
+    <div style="margin-bottom:16px;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:10px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#f5a623">Stop Visibility</div>
+        <div style="font-size:12px;color:#7a8499;margin-top:2px">Check the stops the driver should see. Unchecked stops are hidden from the driver.</div>
+      </div>
+      <button class="btn-primary" style="font-size:12px;padding:8px 20px;white-space:nowrap" onclick="saveActiveStops('${esc(truck.load_number)}')">✓ Save Visibility</button>
+    </div>` : ''}
     <div id="confirm-block-${esc(truck.load_number)}" style="margin-bottom:16px">
       ${truck.confirmed_by ? `
       <div style="background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px">
@@ -414,7 +446,7 @@ function render() {
         const truck = state.trucks.find(t=>t.load_number===state.selectedLoad);
         html += `
         <button class="btn-ghost" style="margin-bottom:16px;font-size:12px" onclick="setState({selectedLoad:null})">← Back to all loads</button>
-        ${truck?renderLoadCard(truck):'<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
+        ${truck?renderLoadCard(truck, true):'<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
       } else {
         html += `
         <div class="tab-bar">
@@ -576,6 +608,40 @@ async function refreshAll() {
     const [loadsRes,usersRes] = await Promise.all([api('getLoads'),api('getUsers')]);
     setState({trucks:loadsRes.trucks||[],users:usersRes.users||{}});
   } catch(e) {}
+}
+
+// ── Stop visibility (admin only) ─────────────────────────
+function markStopPending(loadNum, stopIdx, checked) {
+  // Update checkbox label live
+  const chk = document.getElementById(`stop-chk-${loadNum}-${stopIdx}`);
+  if (chk) {
+    const lbl = chk.nextElementSibling;
+    if (lbl) lbl.textContent = checked ? 'Visible to driver' : 'Hidden from driver';
+  }
+}
+
+async function saveActiveStops(loadNum) {
+  const truck = state.trucks.find(t => t.load_number === loadNum);
+  if (!truck) return;
+  const allStops = groupStops(truck.shipments);
+  // Collect which stops are checked
+  const activeStops = allStops
+    .filter((st, i) => {
+      const chk = document.getElementById(`stop-chk-${loadNum}-${i}`);
+      return chk ? chk.checked : true;
+    })
+    .map(st => st.name);
+  try {
+    await api('saveActiveStops', {load_number: loadNum, stops: activeStops.join('|')});
+    // Update local state
+    state.trucks = state.trucks.map(t =>
+      t.load_number === loadNum ? {...t, active_stops: activeStops} : t
+    );
+    setState({});
+    showToast('Stop visibility saved');
+  } catch(e) {
+    showToast(e.message || 'Error saving stops', 'err');
+  }
 }
 
 // ── Confirm dispatch receipt ─────────────────────────────
