@@ -251,6 +251,20 @@ function renderLoadCard(truck) {
           <div class="mono" style="font-size:28px;color:${truck.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'}">${esc(truck.carrier_pay)}</div>
       </div>
     </div>
+    <div id="confirm-block-${esc(truck.load_number)}" style="margin-bottom:16px">
+      ${truck.confirmed_by ? `
+      <div style="background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:20px">✅</span>
+        <div>
+          <div style="font-size:13px;color:#3ecf8e;font-weight:600">Dispatch Confirmed</div>
+          <div style="font-size:11px;color:#7a8499;margin-top:2px">${esc(truck.confirmed_by)} · ${esc(truck.confirmed_at)}</div>
+        </div>
+      </div>` : `
+      <button class="btn-success" style="width:100%;padding:14px;font-size:15px;letter-spacing:.08em"
+              onclick="confirmDispatch('${esc(truck.load_number)}')">
+        ✓ Confirm Receipt of Dispatch
+      </button>`}
+    </div>
     ${stops.length>0?`<div class="surface" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px">${routeBar}</div>`:''}
     <div class="label" style="margin-bottom:10px">${stops.length} delivery stop${stops.length!==1?'s':''} — tap to expand</div>
     ${stopCards}
@@ -299,9 +313,10 @@ function renderAdminDrivers() {
       <label class="check-item" style="border-left-color:${checked?'#3ecf8e':'transparent'}" id="ci-${uid}-${esc(t.load_number)}">
         <input type="checkbox" ${checked?'checked':''} id="chk-${uid}-${esc(t.load_number)}" onchange="markPending('${uid}','${esc(t.load_number)}',this.checked)">
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="mono" style="font-size:15px;color:#f5a623">#${esc(t.load_number)}</span>
-            <span style="font-size:11px;color:#7a8499">${stops.length} stop${stops.length!==1?'s':''} · ${(t.shipments||[]).length} orders</span>
+            <span style="font-size:11px;color:#e8ecf4;font-weight:600">${esc(t.carrier)}</span>
+            <span style="font-size:11px;color:#7a8499">· ${stops.length} stop${stops.length!==1?'s':''} · ${(t.shipments||[]).length} orders</span>
             <span style="margin-left:auto;font-size:12px;color:${checked?'#3ecf8e':'#7a8499'};font-family:'Barlow Condensed',sans-serif;font-weight:700">${esc(t.carrier_pay)}</span>
           </div>
           <div style="font-size:11px;color:#7a8499;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -561,6 +576,28 @@ async function refreshAll() {
     const [loadsRes,usersRes] = await Promise.all([api('getLoads'),api('getUsers')]);
     setState({trucks:loadsRes.trucks||[],users:usersRes.users||{}});
   } catch(e) {}
+}
+
+// ── Confirm dispatch receipt ─────────────────────────────
+async function confirmDispatch(loadNum) {
+  const btn = document.querySelector(`#confirm-block-${loadNum} button`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  const driverName = state.session?.name || 'Unknown';
+  const now = new Date();
+  const stamp = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+    + ' ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+  try {
+    await api('confirmLoad', {load_number: loadNum, confirmed_by: driverName, confirmed_at: stamp});
+    // Update local truck state so UI refreshes without a full reload
+    state.trucks = state.trucks.map(t =>
+      t.load_number === loadNum ? {...t, confirmed_by: driverName, confirmed_at: stamp} : t
+    );
+    setState({});
+    showToast('Dispatch confirmed — logged to Google Sheets');
+  } catch(e) {
+    showToast(e.message || 'Error saving confirmation', 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Confirm Receipt of Dispatch'; }
+  }
 }
 
 // ── Boot ─────────────────────────────────────────────────
