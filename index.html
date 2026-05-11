@@ -139,18 +139,30 @@ async function api(action, params={}) {
 function fmtDate(raw) {
   if (!raw) return '';
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  // Parse as literal values — no timezone conversion so time is always fixed
-  // Handles "5/11/2026 14:30:00" or "5/11/2026 0:00:00"
-  const m = String(raw).match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
-  if (m) {
-    const mo = parseInt(m[1])-1, day = parseInt(m[2]), yr = parseInt(m[3]);
-    const hr = parseInt(m[4]), min = parseInt(m[5]);
-    const t = (hr===0 && min===0) ? '' :
-      ` ${hr%12||12}:${String(min).padStart(2,'0')} ${hr<12?'AM':'PM'}`;
+  const s = String(raw).trim();
+
+  // Format 1: "5/11/2026 14:30:00" — from CSV export
+  const m1 = s.match(/^(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+  if (m1) {
+    const mo=parseInt(m1[1])-1, day=parseInt(m1[2]), yr=parseInt(m1[3]);
+    const hr=parseInt(m1[4]), min=parseInt(m1[5]);
+    const t = (hr===0&&min===0) ? '' : ` ${hr%12||12}:${String(min).padStart(2,'0')} ${hr<12?'AM':'PM'}`;
     return `${months[mo]} ${day}, ${yr}${t}`;
   }
-  // Fallback: return raw string as-is rather than letting browser parse it
-  return String(raw);
+
+  // Format 2: "Mon May 18 2026 14:00:00 GMT-0400 ..." — from Google Sheets live data
+  const m2 = s.match(/[A-Za-z]+\s+([A-Za-z]+)\s+(\d+)\s+(\d+)\s+(\d+):(\d+)/);
+  if (m2) {
+    const moName=m2[1], day=parseInt(m2[2]), yr=parseInt(m2[3]);
+    const hr=parseInt(m2[4]), min=parseInt(m2[5]);
+    const moIdx = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+                  .findIndex(x=>moName.startsWith(x));
+    const moStr = moIdx>=0 ? months[moIdx] : moName.slice(0,3);
+    const t = (hr===0&&min===0) ? '' : ` ${hr%12||12}:${String(min).padStart(2,'0')} ${hr<12?'AM':'PM'}`;
+    return `${moStr} ${day}, ${yr}${t}`;
+  }
+
+  return s;
 }
 
 function groupStops(shipments) {
@@ -180,7 +192,16 @@ let state = {
   adminTab:'loads', selectedLoad:null, expandedUser:null, toast:null
 };
 
-function setState(patch) { state={...state,...patch}; render(); }
+function setState(patch) {
+  state={...state,...patch};
+  // Persist session so refresh doesn't log out
+  if (state.session) {
+    try { sessionStorage.setItem('pfs_session', JSON.stringify(state.session)); } catch(e){}
+  } else {
+    try { sessionStorage.removeItem('pfs_session'); } catch(e){}
+  }
+  render();
+}
 
 function showToast(msg, type='ok') {
   setState({toast:{msg,type}});
@@ -864,12 +885,26 @@ function downloadPDF(loadNum, showPay=true) {
 
 // ── Boot ─────────────────────────────────────────────────
 (async function boot() {
-  render();
+  // Restore session from sessionStorage if available (survives refresh/back)
+  try {
+    const saved = sessionStorage.getItem('pfs_session');
+    if (saved) {
+      const session = JSON.parse(saved);
+      state.session = session;
+      state.view = session.role === 'admin' ? 'admin' : 'driver';
+    }
+  } catch(e){}
+
+  render(); // show loading or restored view
   try {
     const [loadsRes,usersRes] = await Promise.all([api('getLoads'),api('getUsers')]);
-    setState({trucks:loadsRes.trucks||[],users:usersRes.users||{},view:'login'});
+    const patch = {trucks:loadsRes.trucks||[], users:usersRes.users||{}};
+    // Only go to login if no saved session
+    if (!state.session) patch.view = 'login';
+    setState(patch);
   } catch(e) {
-    setState({view:'login'});
+    if (!state.session) setState({view:'login'});
+    else render();
   }
 })();
 </script>
