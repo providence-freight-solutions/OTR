@@ -317,22 +317,32 @@ function renderLoadCard(truck, isAdmin=false) {
 function renderAdminLoads() {
   const active = state.trucks.filter(t=>(t.shipments||[]).length>0);
   if (!active.length) return `<div class="surface" style="text-align:center;padding:40px;color:#7a8499">No loads with shipments found. Make sure your Google Sheet is connected.</div>`;
-  const cards = active.map(t=>{
+  const rows = active.map(t=>{
     const stops    = groupStops(t.shipments);
     const assigned = Object.entries(state.users).find(([,u])=>(u.loads||[]).includes(t.load_number));
     return `
-    <div class="card-sm" style="cursor:pointer;border-left:3px solid ${assigned?'#a78bfa':'#2a3040'}" onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div class="mono" style="font-size:26px;color:#f5a623;line-height:1">#${esc(t.load_number)}</div>
-        ${assigned?`<span class="badge badge-purple">✓ ${esc(assigned[1].name)}</span>`:`<span class="badge badge-muted">Unassigned</span>`}
-      </div>
-      <div style="font-size:12px;color:#7a8499;margin-bottom:6px">${esc(t.carrier)}</div>
-      <div style="display:flex;gap:12px;font-size:12px;align-items:center">
-        <span><span class="mono" style="font-size:14px">${stops.length}</span><span style="color:#7a8499"> stops</span></span>
-        <span><span class="mono" style="font-size:14px">${(t.shipments||[]).length}</span><span style="color:#7a8499"> orders</span></span>
-        <span style="margin-left:auto;color:${t.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'};font-family:'Barlow Condensed',sans-serif;font-weight:700">${esc(t.carrier_pay)}</span>
-      </div>
-    </div>`;
+    <tr onclick="setState({selectedLoad:'${esc(t.load_number)}'})" style="cursor:pointer">
+      <td style="padding:10px 14px">
+        <div class="mono" style="font-size:16px;color:#f5a623;line-height:1">#${esc(t.load_number)}</div>
+      </td>
+      <td style="padding:10px 14px">
+        <div style="font-size:13px;color:#e8ecf4">${esc(t.carrier)}</div>
+      </td>
+      <td style="padding:10px 14px;text-align:center">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${stops.length}</span>
+      </td>
+      <td style="padding:10px 14px;text-align:center">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${(t.shipments||[]).length}</span>
+      </td>
+      <td style="padding:10px 14px;text-align:right">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;color:${t.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'}">${esc(t.carrier_pay)}</span>
+      </td>
+      <td style="padding:10px 14px;text-align:right">
+        ${assigned
+          ? `<span class="badge badge-purple">✓ ${esc(assigned[1].name)}</span>`
+          : `<span class="badge badge-muted">Unassigned</span>`}
+      </td>
+    </tr>`;
   }).join('');
   return `
   <div>
@@ -340,7 +350,23 @@ function renderAdminLoads() {
       <div class="label">${active.length} active loads</div>
       <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshLoads()">↻ Refresh</button>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">${cards}</div>
+    <div style="background:#161a22;border:1px solid #2a3040;border-radius:10px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#1e2330;border-bottom:1px solid #2a3040">
+            <th style="padding:9px 14px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Load</th>
+            <th style="padding:9px 14px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Carrier</th>
+            <th style="padding:9px 14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Stops</th>
+            <th style="padding:9px 14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Orders</th>
+            <th style="padding:9px 14px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Pay</th>
+            <th style="padding:9px 14px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Assigned</th>
+          </tr>
+        </thead>
+        <tbody style="border-collapse:collapse">
+          ${rows}
+        </tbody>
+      </table>
+    </div>
   </div>`;
 }
 
