@@ -198,7 +198,8 @@ function esc(str) {
 let state = {
   view:'loading', session:null, trucks:[], users:{},
   adminTab:'loads', selectedLoad:null, expandedUser:null, toast:null,
-  addressBook:[]   // loaded once from Apps Script
+  addressBook:[],   // loaded once from Apps Script
+  expandedStops:{}  // {loadNum: Set of stop indices that are open}
 };
 
 function setState(patch) {
@@ -304,7 +305,7 @@ function renderLoadCard(truck, isAdmin=false) {
     return `
     <div class="stop-card" style="opacity:${!isAdmin && !isActive ? '0.4' : '1'}">
       ${adminCheck}
-      <div class="stop-header" style="border-left-color:${color}" onclick="toggleStop(${i})">
+      <div class="stop-header" style="border-left-color:${color}" onclick="toggleStop(${i},'${esc(truck.load_number)}')">
         <div style="display:flex;gap:12px;flex:1;min-width:0">
           <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;color:#0d0f14;flex-shrink:0">${isAdmin ? i+1 : (isActive ? ++driverStopNum : i+1)}</div>
           <div style="flex:1;min-width:0">
@@ -718,12 +719,18 @@ function render() {
 }
 
 // ── Event handlers ────────────────────────────────────────
-function toggleStop(i) {
+function toggleStop(i, loadNum) {
   const body = document.getElementById('stop-body-'+i);
   const chev = document.getElementById('chev-'+i);
   if (!body) return;
   const open = body.classList.toggle('open');
   if (chev) chev.style.transform = open?'rotate(180deg)':'none';
+  // Track in state (no re-render needed)
+  if (loadNum) {
+    if (!state.expandedStops[loadNum]) state.expandedStops[loadNum] = new Set();
+    if (open) state.expandedStops[loadNum].add(i);
+    else       state.expandedStops[loadNum].delete(i);
+  }
 }
 
 function handleLogout() {
@@ -896,9 +903,41 @@ function downloadPDF(loadNum, showPay=true) {
   const totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
   const totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
 
+  // Get which stops are currently expanded for this load
+  const openStops = state.expandedStops[loadNum] || new Set();
+
   const stopRows = stops.map((st, i) => {
     const sw = st.orders.reduce((a,s)=>a+s.weight,0);
     const sp = st.orders.reduce((a,s)=>a+s.pallets,0);
+    const isOpen = openStops.has(i);
+
+    const orderDetail = isOpen ? `
+      <table style="width:100%;border-collapse:collapse;margin-top:0">
+        <thead>
+          <tr style="background:#f3f4f6">
+            <th style="padding:6px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #e5e7eb">PO / Reference</th>
+            <th style="padding:6px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #e5e7eb">Shipper / Origin</th>
+            <th style="padding:6px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #e5e7eb">Pickup #</th>
+            <th style="padding:6px 10px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #e5e7eb">Lbs</th>
+            <th style="padding:6px 10px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid #e5e7eb">Pallets</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${st.orders.map(s=>`
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:6px 10px;font-size:11px;color:#374151">
+              ${s.po_num||'—'}
+              ${s.ship_ref?`<div style="font-size:10px;color:#9ca3af;margin-top:1px">${s.ship_ref}</div>`:''}
+              ${s.notes?`<div style="font-size:10px;color:#f5a623;margin-top:2px">📌 ${s.notes}</div>`:''}
+            </td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151">${s.shipper||'—'}<div style="font-size:10px;color:#9ca3af">${s.or_city}, ${s.or_state}</div></td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151">${s.pickup_num||'—'}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151;text-align:right">${s.weight>0?s.weight.toLocaleString():'—'}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151;text-align:right">${s.pallets>0?s.pallets:'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '';
+
     return `
     <div style="margin-bottom:14px;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;page-break-inside:avoid">
       <div style="background:#1e2330;padding:12px 16px;display:flex;align-items:center;gap:12px">
@@ -923,6 +962,7 @@ function downloadPDF(loadNum, showPay=true) {
           </div>
         </div>
       </div>
+      ${orderDetail}
     </div>`;
   }).join('');
 
