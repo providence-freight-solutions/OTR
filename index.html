@@ -83,6 +83,14 @@ select option{background:#1e2330}
 .page-fade{animation:pf .25s ease}
 @keyframes pf{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .route-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.pickup-search{position:relative}
+.pickup-dropdown{position:absolute;top:100%;left:0;right:0;background:#1e2330;border:1.5px solid #f5a623;border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:50}
+.pickup-option{padding:9px 14px;cursor:pointer;font-size:13px;color:#e8ecf4;border-bottom:0.5px solid #2a3040}
+.pickup-option:last-child{border-bottom:none}
+.pickup-option:hover{background:#2a3040}
+.pickup-option .opt-addr{font-size:11px;color:#7a8499;margin-top:2px}
+.pickup-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#1e2330;border-radius:8px;margin-bottom:6px;border:0.5px solid #2a3040}
+.pickup-num{width:22px;height:22px;border-radius:50%;background:#f5a623;color:#0d0f14;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 @media(max-width:600px){
   #app{padding:0 12px 80px}
   .card{padding:16px}
@@ -189,7 +197,8 @@ function esc(str) {
 // ── State ─────────────────────────────────────────────────
 let state = {
   view:'loading', session:null, trucks:[], users:{},
-  adminTab:'loads', selectedLoad:null, expandedUser:null, toast:null
+  adminTab:'loads', selectedLoad:null, expandedUser:null, toast:null,
+  addressBook:[]   // loaded once from Apps Script
 };
 
 function setState(patch) {
@@ -333,6 +342,44 @@ function renderLoadCard(truck, isAdmin=false) {
       </div>
     </div>
     ${isAdmin ? `
+    <div style="margin-bottom:16px;background:rgba(91,141,238,.05);border:1px solid rgba(91,141,238,.2);border-radius:10px;padding:14px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#5b8dee">Pickup Assignments</div>
+          <div style="font-size:12px;color:#7a8499;margin-top:2px">Search and add pickup stops in delivery order. Carriers see these above their delivery stops.</div>
+        </div>
+        <button class="btn-info" style="font-size:12px;padding:7px 16px;white-space:nowrap" onclick="savePickups('${esc(truck.load_number)}')">✓ Save Pickups</button>
+      </div>
+      <!-- Assigned pickups list — always show Providence Warehouse as stop 1 -->
+      <div id="pickup-list-${esc(truck.load_number)}">
+        <div class="pickup-row" style="border-color:rgba(245,166,35,.3)">
+          <div class="pickup-num" style="background:#f5a623">1</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#f5a623">PROVIDENCE WAREHOUSE</div>
+            <div style="font-size:11px;color:#7a8499;margin-top:1px">Default origin — edit if different</div>
+          </div>
+          <span style="font-size:10px;color:#7a8499;font-family:'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase">Default</span>
+        </div>
+        ${(truck.pickups||[]).map((p,i)=>`
+        <div class="pickup-row" id="pkrow-${esc(truck.load_number)}-${i}">
+          <div class="pickup-num">${i+2}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#e8ecf4">${esc(p.name)}</div>
+            <div style="font-size:11px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+          </div>
+          <button onclick="removePickup('${esc(truck.load_number)}',${i})" style="background:rgba(244,91,105,.12);border:1px solid rgba(244,91,105,.25);color:#f45b69;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer">✕</button>
+        </div>`).join('')}
+      </div>
+      <!-- Search box -->
+      <div class="pickup-search" style="margin-top:8px">
+        <input id="pickup-input-${esc(truck.load_number)}" type="text" placeholder="Search pickup location…"
+               oninput="filterPickups('${esc(truck.load_number)}',this.value)"
+               onfocus="filterPickups('${esc(truck.load_number)}',this.value)"
+               style="margin:0"
+               autocomplete="off">
+        <div id="pickup-dd-${esc(truck.load_number)}" class="pickup-dropdown" style="display:none"></div>
+      </div>
+    </div>
     <div style="margin-bottom:16px;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:10px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#f5a623">Stop Visibility</div>
@@ -354,6 +401,25 @@ function renderLoadCard(truck, isAdmin=false) {
         ✓ Confirm Receipt of Dispatch
       </button>`}
     </div>`}
+    ${!isAdmin ? `
+    <div style="background:#1e2330;border:1px solid #2a3040;border-radius:10px;padding:14px 18px;margin-bottom:16px">
+      <div class="label" style="margin-bottom:10px;color:#5b8dee">Pickup Stops — In Order</div>
+      <div class="pickup-row" style="border-color:rgba(245,166,35,.3)">
+        <div class="pickup-num" style="background:#f5a623">1</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:#f5a623">PROVIDENCE WAREHOUSE</div>
+          <div style="font-size:12px;color:#7a8499;margin-top:1px">Origin</div>
+        </div>
+      </div>
+      ${truck.pickups.map((p,i)=>`
+      <div class="pickup-row">
+        <div class="pickup-num" style="background:#5b8dee">${i+2}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:#e8ecf4">${esc(p.name)}</div>
+          <div style="font-size:12px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+        </div>
+      </div>`).join('')}
+    </div>` : ''}
     ${stops.length>0?`<div class="surface" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px">${routeBar}</div>`:''}
     <div class="label" style="margin-bottom:10px">${stops.length} delivery stop${stops.length!==1?'s':''} — tap to expand</div>
     ${stopCards}
@@ -711,8 +777,8 @@ async function refreshLoads() {
 
 async function refreshAll() {
   try {
-    const [loadsRes,usersRes] = await Promise.all([api('getLoads'),api('getUsers')]);
-    setState({trucks:loadsRes.trucks||[],users:usersRes.users||{}});
+    const [loadsRes,usersRes,abRes] = await Promise.all([api('getLoads'),api('getUsers'),api('getAddressBook')]);
+    setState({trucks:loadsRes.trucks||[],users:usersRes.users||{},addressBook:abRes.locations||[]});
   } catch(e) {}
 }
 
@@ -883,6 +949,76 @@ function downloadPDF(loadNum, showPay=true) {
   win.onload = () => { win.focus(); win.print(); };
 }
 
+// ── Pickup assignment (admin) ────────────────────────────
+function filterPickups(loadNum, query) {
+  const dd = document.getElementById('pickup-dd-' + loadNum);
+  if (!dd) return;
+  const q = query.trim().toLowerCase();
+  // Get current truck pickups to avoid duplication display
+  const truck = state.trucks.find(t=>t.load_number===loadNum);
+  const existing = (truck && truck.pickups)||[];
+  const results = q
+    ? state.addressBook.filter(loc=>loc.name.toLowerCase().includes(q) || loc.address.toLowerCase().includes(q))
+    : state.addressBook;
+  if (!results.length || !q) { dd.style.display='none'; return; }
+  dd.innerHTML = results.slice(0,20).map(loc=>`
+    <div class="pickup-option" onclick="addPickup('${loadNum}','${loc.name.replace(/'/g,"\'")}','${loc.address.replace(/'/g,"\'")}')">
+      <div>${loc.name}</div>
+      <div class="opt-addr">${loc.address}</div>
+    </div>`).join('');
+  dd.style.display='block';
+}
+
+function addPickup(loadNum, name, address) {
+  // Close dropdown and clear input
+  const dd = document.getElementById('pickup-dd-' + loadNum);
+  const inp = document.getElementById('pickup-input-' + loadNum);
+  if (dd) dd.style.display='none';
+  if (inp) inp.value='';
+  // Update truck pickups in state
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const pickups = [...(t.pickups||[]), {name, address}];
+    return {...t, pickups};
+  });
+  render();
+  // Re-focus input for chaining
+  setTimeout(()=>{ const i=document.getElementById('pickup-input-'+loadNum); if(i) i.focus(); },50);
+}
+
+function removePickup(loadNum, idx) {
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const pickups = (t.pickups||[]).filter((_,i)=>i!==idx);
+    return {...t, pickups};
+  });
+  render();
+}
+
+async function savePickups(loadNum) {
+  const truck = state.trucks.find(t=>t.load_number===loadNum);
+  if (!truck) return;
+  const pickups = truck.pickups || [];
+  try {
+    const json    = JSON.stringify(pickups);
+    const b64     = btoa(unescape(encodeURIComponent(json)));
+    const url = APPS_SCRIPT_URL + '?action=savePickups&load_number=' + encodeURIComponent(loadNum) + '&pickupsB64=' + encodeURIComponent(b64);
+    const res  = await fetch(url, {method:'GET', redirect:'follow'});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showToast('Pickups saved');
+  } catch(e) {
+    showToast(e.message||'Error saving pickups','err');
+  }
+}
+
+// Close pickup dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pickup-search')) {
+    document.querySelectorAll('.pickup-dropdown').forEach(d=>d.style.display='none');
+  }
+});
+
 // ── Boot ─────────────────────────────────────────────────
 (async function boot() {
   // Restore session from sessionStorage if available (survives refresh/back)
@@ -897,8 +1033,8 @@ function downloadPDF(loadNum, showPay=true) {
 
   render(); // show loading or restored view
   try {
-    const [loadsRes,usersRes] = await Promise.all([api('getLoads'),api('getUsers')]);
-    const patch = {trucks:loadsRes.trucks||[], users:usersRes.users||{}};
+    const [loadsRes,usersRes,abRes] = await Promise.all([api('getLoads'),api('getUsers'),api('getAddressBook')]);
+    const patch = {trucks:loadsRes.trucks||[], users:usersRes.users||{}, addressBook:abRes.locations||[]};
     // Only go to login if no saved session
     if (!state.session) patch.view = 'login';
     setState(patch);
