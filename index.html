@@ -448,59 +448,82 @@ function renderLoadCard(truck, isAdmin=false) {
   </div>`;
 }
 
+function getRegion(truck) {
+  const LOCAL      = new Set(['NY','NJ','CT','PA','MA','RI','VT','NH','ME','DE','MD','DC']);
+  const CALIFORNIA = new Set(['CA','NV','AZ','OR','WA']);
+  const SOUTHEAST  = new Set(['FL','GA','SC','NC','VA','TN','AL','MS','LA','AR','KY','WV']);
+  const MIDWEST    = new Set(['IL','IN','OH','MI','WI','MN','IA','MO','ND','SD','NE','KS']);
+  const score = {Local:0,California:0,Southeast:0,Midwest:0,Other:0};
+  (truck.shipments||[]).forEach(s=>{
+    const st=(s.del_state||'').trim().toUpperCase();
+    if(LOCAL.has(st))           score.Local++;
+    else if(CALIFORNIA.has(st)) score.California++;
+    else if(SOUTHEAST.has(st))  score.Southeast++;
+    else if(MIDWEST.has(st))    score.Midwest++;
+    else                        score.Other++;
+  });
+  return Object.entries(score).sort((a,b)=>b[1]-a[1])[0][0];
+}
+
 function renderAdminLoads() {
   const active = state.trucks.filter(t=>(t.shipments||[]).length>0);
   if (!active.length) return `<div class="surface" style="text-align:center;padding:40px;color:#7a8499">No loads with shipments found. Make sure your Google Sheet is connected.</div>`;
-  const rows = active.map(t=>{
-    const stops    = groupStops(t.shipments);
-    const assigned = Object.entries(state.users).find(([,u])=>(u.loads||[]).includes(t.load_number));
+
+  const REGIONS = ['Local','California','Southeast','Midwest','Other'];
+  const COLORS  = {
+    Local:      {accent:'#5b8dee',bg:'rgba(91,141,238,.08)',border:'rgba(91,141,238,.3)'},
+    California: {accent:'#f5a623',bg:'rgba(245,166,35,.08)',border:'rgba(245,166,35,.3)'},
+    Southeast:  {accent:'#3ecf8e',bg:'rgba(62,207,142,.08)',border:'rgba(62,207,142,.3)'},
+    Midwest:    {accent:'#e879a0',bg:'rgba(232,121,160,.08)',border:'rgba(232,121,160,.3)'},
+    Other:      {accent:'#7a8499',bg:'rgba(122,132,153,.06)',border:'rgba(42,48,64,.6)'},
+  };
+
+  const groups = {};
+  REGIONS.forEach(r=>groups[r]=[]);
+  active.forEach(t=>{ const r=getRegion(t); (groups[r]||groups.Other).push(t); });
+
+  const th = (txt,align='left') =>
+    `<th style="padding:9px 14px;text-align:${align};font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">${txt}</th>`;
+
+  const sections = REGIONS.filter(r=>groups[r].length>0).map(region=>{
+    const c = COLORS[region];
+    const rows = groups[region].map(t=>{
+      const stops    = groupStops(t.shipments);
+      const assigned = Object.entries(state.users).find(([,u])=>(u.loads||[]).includes(t.load_number));
+      return `<tr onclick="setState({selectedLoad:'${esc(t.load_number)}'})" style="cursor:pointer;border-bottom:0.5px solid #2a3040" onmouseover="this.style.background='#1e2330'" onmouseout="this.style.background='transparent'">
+        <td style="padding:10px 14px"><div class="mono" style="font-size:16px;color:#f5a623">#${esc(t.load_number)}</div></td>
+        <td style="padding:10px 14px"><div style="font-size:13px;color:#e8ecf4">${esc(t.carrier)}</div></td>
+        <td style="padding:10px 14px;text-align:center"><span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${stops.length}</span></td>
+        <td style="padding:10px 14px;text-align:center"><span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${(t.shipments||[]).length}</span></td>
+        <td style="padding:10px 14px;text-align:right"><span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;color:${t.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'}">${esc(t.carrier_pay)}</span></td>
+        <td style="padding:10px 14px;text-align:right">${assigned?`<span class="badge badge-purple">✓ ${esc(assigned[1].name)}</span>`:`<span class="badge badge-muted">Unassigned</span>`}</td>
+      </tr>`;
+    }).join('');
     return `
-    <tr onclick="setState({selectedLoad:'${esc(t.load_number)}'})" style="cursor:pointer">
-      <td style="padding:10px 14px">
-        <div class="mono" style="font-size:16px;color:#f5a623;line-height:1">#${esc(t.load_number)}</div>
-      </td>
-      <td style="padding:10px 14px">
-        <div style="font-size:13px;color:#e8ecf4">${esc(t.carrier)}</div>
-      </td>
-      <td style="padding:10px 14px;text-align:center">
-        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${stops.length}</span>
-      </td>
-      <td style="padding:10px 14px;text-align:center">
-        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px">${(t.shipments||[]).length}</span>
-      </td>
-      <td style="padding:10px 14px;text-align:right">
-        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;color:${t.carrier_pay==='$0.00'?'#7a8499':'#3ecf8e'}">${esc(t.carrier_pay)}</span>
-      </td>
-      <td style="padding:10px 14px;text-align:right">
-        ${assigned
-          ? `<span class="badge badge-purple">✓ ${esc(assigned[1].name)}</span>`
-          : `<span class="badge badge-muted">Unassigned</span>`}
-      </td>
-    </tr>`;
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:${c.bg};border:1px solid ${c.border};border-radius:8px 8px 0 0">
+        <div style="width:8px;height:8px;border-radius:50%;background:${c.accent};flex-shrink:0"></div>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:${c.accent}">${region}</span>
+        <span style="font-size:11px;color:#7a8499">${groups[region].length} load${groups[region].length!==1?'s':''}</span>
+      </div>
+      <div style="background:#161a22;border:1px solid ${c.border};border-top:none;border-radius:0 0 8px 8px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#1e2330;border-bottom:1px solid #2a3040">
+            ${th('Load')}${th('Carrier')}${th('Stops','center')}${th('Orders','center')}${th('Pay','right')}${th('Assigned','right')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
   }).join('');
+
   return `
   <div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div class="label">${active.length} active loads</div>
       <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshLoads()">↻ Refresh</button>
     </div>
-    <div style="background:#161a22;border:1px solid #2a3040;border-radius:10px;overflow:hidden">
-      <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr style="background:#1e2330;border-bottom:1px solid #2a3040">
-            <th style="padding:9px 14px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Load</th>
-            <th style="padding:9px 14px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Carrier</th>
-            <th style="padding:9px 14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Stops</th>
-            <th style="padding:9px 14px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Orders</th>
-            <th style="padding:9px 14px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Pay</th>
-            <th style="padding:9px 14px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7a8499">Assigned</th>
-          </tr>
-        </thead>
-        <tbody style="border-collapse:collapse">
-          ${rows}
-        </tbody>
-      </table>
-    </div>
+    ${sections}
   </div>`;
 }
 
