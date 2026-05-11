@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Providence Solutions Dispatch Portal</title>
+<title>Providence Carrier Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -173,7 +173,7 @@ function renderHeader() {
         <img src="${LOGO_B64}" style="width:42px;height:42px;object-fit:contain">
       </div>
       <div>
-        <div class="mono" style="font-size:20px;text-transform:uppercase;letter-spacing:.03em">Providence Solutions Dispatch Portal</div>
+        <div class="mono" style="font-size:20px;text-transform:uppercase;letter-spacing:.03em">Providence Carrier Portal</div>
         <div style="font-size:12px;color:#7a8499;margin-top:2px">Over-The-Road Delivery Management</div>
       </div>
     </div>
@@ -293,7 +293,7 @@ function renderLoadCard(truck, isAdmin=false) {
         <div style="font-size:12px;color:#7a8499;margin-top:2px">Check the stops the driver should see. Unchecked stops are hidden from the driver.</div>
       </div>
       <button class="btn-primary" style="font-size:12px;padding:8px 20px;white-space:nowrap" onclick="saveActiveStops('${esc(truck.load_number)}')">✓ Save Visibility</button>
-    </div>` : ''}
+    </div>` : `
     <div id="confirm-block-${esc(truck.load_number)}" style="margin-bottom:16px">
       ${truck.confirmed_by ? `
       <div style="background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.3);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px">
@@ -307,7 +307,7 @@ function renderLoadCard(truck, isAdmin=false) {
               onclick="confirmDispatch('${esc(truck.load_number)}')">
         ✓ Confirm Receipt of Dispatch
       </button>`}
-    </div>
+    </div>`}
     ${stops.length>0?`<div class="surface" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px">${routeBar}</div>`:''}
     <div class="label" style="margin-bottom:10px">${stops.length} delivery stop${stops.length!==1?'s':''} — tap to expand</div>
     ${stopCards}
