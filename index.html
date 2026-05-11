@@ -240,6 +240,16 @@ function renderHeader() {
 }
 
 function renderLoadCard(truck, isAdmin=false) {
+  // Initialize default pickup (Providence Warehouse) if none saved and admin is viewing
+  if (isAdmin && !(truck.pickups && truck.pickups.length>0)) {
+    const pw = state.addressBook.find(l=>l.name.toUpperCase().includes('PROVIDENCE WAREHOUSE'));
+    truck = {...truck, pickups: pw
+      ? [{name:pw.name, address:pw.address, datetime:'', notes:''}]
+      : [{name:'PROVIDENCE WAREHOUSE', address:'Flanders, NJ', datetime:'', notes:''}]
+    };
+    // Sync back to state silently
+    state.trucks = state.trucks.map(t=>t.load_number===truck.load_number?truck:t);
+  }
   const allStops = groupStops(truck.shipments);
   // active_stops is an array of stop names admin has enabled; empty = all active
   const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
@@ -350,24 +360,34 @@ function renderLoadCard(truck, isAdmin=false) {
         </div>
         <button class="btn-info" style="font-size:12px;padding:7px 16px;white-space:nowrap" onclick="savePickups('${esc(truck.load_number)}')">✓ Save Pickups</button>
       </div>
-      <!-- Assigned pickups list — always show Providence Warehouse as stop 1 -->
+      <!-- Assigned pickups list — Providence Warehouse default at top, all rows removable -->
       <div id="pickup-list-${esc(truck.load_number)}">
-        <div class="pickup-row" style="border-color:rgba(245,166,35,.3)">
-          <div class="pickup-num" style="background:#f5a623">1</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:#f5a623">PROVIDENCE WAREHOUSE</div>
-            <div style="font-size:11px;color:#7a8499;margin-top:1px">Default origin — edit if different</div>
-          </div>
-          <span style="font-size:10px;color:#7a8499;font-family:'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase">Default</span>
-        </div>
         ${(truck.pickups||[]).map((p,i)=>`
-        <div class="pickup-row" id="pkrow-${esc(truck.load_number)}-${i}">
-          <div class="pickup-num">${i+2}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:#e8ecf4">${esc(p.name)}</div>
-            <div style="font-size:11px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+        <div style="margin-bottom:8px;background:#161a22;border:1px solid ${i===0&&p.name==='PROVIDENCE WAREHOUSE'?'rgba(245,166,35,.3)':'#2a3040'};border-radius:8px;padding:10px 12px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div class="pickup-num" style="${i===0&&p.name==='PROVIDENCE WAREHOUSE'?'background:#f5a623':'background:#5b8dee'}">${i+1}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:${i===0&&p.name==='PROVIDENCE WAREHOUSE'?'#f5a623':'#e8ecf4'}">${esc(p.name)}</div>
+              <div style="font-size:11px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+            </div>
+            <button onclick="removePickup('${esc(truck.load_number)}',${i})" style="background:rgba(244,91,105,.12);border:1px solid rgba(244,91,105,.25);color:#f45b69;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;flex-shrink:0">✕</button>
           </div>
-          <button onclick="removePickup('${esc(truck.load_number)}',${i})" style="background:rgba(244,91,105,.12);border:1px solid rgba(244,91,105,.25);color:#f45b69;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer">✕</button>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Date &amp; Time</div>
+              <input type="text" placeholder="e.g. May 18, 2026 8:00 AM"
+                     value="${esc(p.datetime||'')}"
+                     oninput="updatePickupField('${esc(truck.load_number)}',${i},'datetime',this.value)"
+                     style="font-size:12px;padding:6px 10px;margin:0">
+            </div>
+            <div style="flex:1">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Notes</div>
+              <input type="text" placeholder="e.g. Call ahead, dock hours"
+                     value="${esc(p.notes||'')}"
+                     oninput="updatePickupField('${esc(truck.load_number)}',${i},'notes',this.value)"
+                     style="font-size:12px;padding:6px 10px;margin:0">
+            </div>
+          </div>
         </div>`).join('')}
       </div>
       <!-- Search box -->
@@ -411,12 +431,14 @@ function renderLoadCard(truck, isAdmin=false) {
           <div style="font-size:12px;color:#7a8499;margin-top:1px">Origin</div>
         </div>
       </div>
-      ${truck.pickups.map((p,i)=>`
+      ${(truck.pickups||[]).map((p,i)=>`
       <div class="pickup-row">
         <div class="pickup-num" style="background:#5b8dee">${i+2}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:#e8ecf4">${esc(p.name)}</div>
           <div style="font-size:12px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+          ${p.datetime?`<div style="font-size:11px;color:#f5a623;margin-top:2px">🗓 ${esc(p.datetime)}</div>`:''}
+          ${p.notes?`<div style="font-size:11px;color:#7a8499;margin-top:2px">📝 ${esc(p.notes)}</div>`:''}
         </div>
       </div>`).join('')}
     </div>` : ''}
@@ -969,20 +991,25 @@ function filterPickups(loadNum, query) {
   dd.style.display='block';
 }
 
+function getDefaultPickups() {
+  // Find Providence Warehouse in address book, fall back to name-only
+  const pw = state.addressBook.find(loc=>loc.name.toUpperCase().includes('PROVIDENCE WAREHOUSE'));
+  return pw
+    ? [{name: pw.name, address: pw.address, datetime:'', notes:''}]
+    : [{name:'PROVIDENCE WAREHOUSE', address:'Flanders, NJ', datetime:'', notes:''}];
+}
+
 function addPickup(loadNum, name, address) {
-  // Close dropdown and clear input
   const dd = document.getElementById('pickup-dd-' + loadNum);
   const inp = document.getElementById('pickup-input-' + loadNum);
   if (dd) dd.style.display='none';
   if (inp) inp.value='';
-  // Update truck pickups in state
   state.trucks = state.trucks.map(t => {
     if (t.load_number !== loadNum) return t;
-    const pickups = [...(t.pickups||[]), {name, address}];
+    const pickups = [...(t.pickups||[]), {name, address, datetime:'', notes:''}];
     return {...t, pickups};
   });
   render();
-  // Re-focus input for chaining
   setTimeout(()=>{ const i=document.getElementById('pickup-input-'+loadNum); if(i) i.focus(); },50);
 }
 
@@ -993,6 +1020,16 @@ function removePickup(loadNum, idx) {
     return {...t, pickups};
   });
   render();
+}
+
+function updatePickupField(loadNum, idx, field, value) {
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const pickups = (t.pickups||[]).map((p,i) => i===idx ? {...p, [field]: value} : p);
+    return {...t, pickups};
+  });
+  // No render() — don't re-render while typing, just update state silently
+  state = {...state};
 }
 
 async function savePickups(loadNum) {
