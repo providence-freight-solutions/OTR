@@ -118,14 +118,19 @@ async function api(action, params={}) {
 // ── Helpers ───────────────────────────────────────────────
 function fmtDate(raw) {
   if (!raw) return '';
-  let d;
-  const m = String(raw).match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
-  if (m) d = new Date(+m[3], +m[1]-1, +m[2], +m[4], +m[5]);
-  else { d = new Date(raw); if(isNaN(d)) return String(raw); }
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const t = d.getHours()===0&&d.getMinutes()===0 ? '' :
-    ` ${d.getHours()%12||12}:${String(d.getMinutes()).padStart(2,'0')} ${d.getHours()<12?'AM':'PM'}`;
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}${t}`;
+  // Parse as literal values — no timezone conversion so time is always fixed
+  // Handles "5/11/2026 14:30:00" or "5/11/2026 0:00:00"
+  const m = String(raw).match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+  if (m) {
+    const mo = parseInt(m[1])-1, day = parseInt(m[2]), yr = parseInt(m[3]);
+    const hr = parseInt(m[4]), min = parseInt(m[5]);
+    const t = (hr===0 && min===0) ? '' :
+      ` ${hr%12||12}:${String(min).padStart(2,'0')} ${hr<12?'AM':'PM'}`;
+    return `${months[mo]} ${day}, ${yr}${t}`;
+  }
+  // Fallback: return raw string as-is rather than letting browser parse it
+  return String(raw);
 }
 
 function groupStops(shipments) {
