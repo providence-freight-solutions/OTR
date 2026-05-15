@@ -1181,26 +1181,40 @@ document.addEventListener('click', e => {
 
 // ── Boot ─────────────────────────────────────────────────
 (async function boot() {
-  // Restore session from sessionStorage if available (survives refresh/back)
+  // Restore session from sessionStorage (survives refresh/back)
   try {
     const saved = sessionStorage.getItem('pfs_session');
     if (saved) {
       const session = JSON.parse(saved);
       state.session = session;
       state.view = session.role === 'admin' ? 'admin' : 'driver';
+    } else {
+      state.view = 'login'; // show login immediately — don't wait for data
     }
-  } catch(e){}
+  } catch(e) {
+    state.view = 'login';
+  }
 
-  render(); // show loading or restored view
+  render(); // paint login or restored view right away — no spinner wait
+
+  // Load all data silently in the background
   try {
-    const [loadsRes,usersRes,abRes] = await Promise.all([api('getLoads'),api('getUsers'),api('getAddressBook')]);
-    const patch = {trucks:loadsRes.trucks||[], users:usersRes.users||{}, addressBook:abRes.locations||[]};
-    // Only go to login if no saved session
+    const [loadsRes, usersRes, abRes] = await Promise.all([
+      api('getLoads'),
+      api('getUsers'),
+      api('getAddressBook')
+    ]);
+    const patch = {
+      trucks:      loadsRes.trucks    || [],
+      users:       usersRes.users     || {},
+      addressBook: abRes.locations    || []
+    };
+    // If session was restored, stay on current view; otherwise go to login
     if (!state.session) patch.view = 'login';
     setState(patch);
   } catch(e) {
+    // Data failed — user can still see login and retry via Refresh after logging in
     if (!state.session) setState({view:'login'});
-    else render();
   }
 })();
 </script>
