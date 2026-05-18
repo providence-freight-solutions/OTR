@@ -519,14 +519,16 @@ function renderArchive() {
   <div class="page-fade">
     <div style="margin-bottom:20px">
       <div class="label" style="margin-bottom:8px">Search Archive by Load Number</div>
-      <div style="display:flex;gap:10px;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <input id="archive-input" type="text" placeholder="Enter load number e.g. 5992"
                value="${esc(archiveQuery)}"
                style="max-width:280px;margin:0"
                onkeydown="if(event.key==='Enter')searchArchive()">
         <button class="btn-primary" style="padding:10px 22px;font-size:13px" onclick="searchArchive()">Search</button>
         ${archiveResult||archiveError?`<button class="btn-ghost" style="padding:10px 16px;font-size:12px" onclick="setState({archiveResult:null,archiveError:null,archiveQuery:''})">✕ Clear</button>`:''}
+        <button class="btn-ghost" style="padding:10px 16px;font-size:12px;margin-left:auto" onclick="warmArchiveCache()" title="Pre-loads all archive data into cache for faster searches">⚡ Warm Cache</button>
       </div>
+      <div style="font-size:11px;color:#7a8499;margin-top:8px">First search reads the full sheet. Click <strong style="color:#f5a623">⚡ Warm Cache</strong> to pre-load for instant searches.</div>
     </div>
     ${archiveError ? `
     <div style="background:rgba(244,91,105,.08);border:1px solid rgba(244,91,105,.25);border-radius:10px;padding:16px 20px;color:#f45b69;font-size:14px">
@@ -1224,6 +1226,17 @@ document.addEventListener('click', e => {
 });
 
 // ── Archive search ───────────────────────────────────────
+async function warmArchiveCache() {
+  showToast('Warming archive cache — this may take a moment…');
+  try {
+    const res = await api('warmArchiveCache');
+    if (res.error) showToast(res.error, 'err');
+    else showToast(`Cache warmed — ${res.loads} loads ready for instant search`);
+  } catch(e) {
+    showToast(e.message || 'Error warming cache', 'err');
+  }
+}
+
 async function searchArchive() {
   const input = document.getElementById('archive-input');
   const query = (input ? input.value : state.archiveQuery).trim();
