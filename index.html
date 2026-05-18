@@ -234,9 +234,10 @@ let state = {
   adminTab:'loads', selectedLoad:null, expandedUser:null, toast:null,
   addressBook:[],    // loaded once from Apps Script
   expandedStops:{},  // {loadNum: Set of stop indices that are open}
-  archiveResult:null, // truck object from archive search
-  archiveError:null,  // error string
-  archiveQuery:''     // last searched load number
+  archiveResult:null,    // truck object from archive search
+  archiveError:null,     // error string
+  archiveQuery:'',       // last searched load number
+  archiveSearching:false // true while waiting for response
 };
 
 function setState(patch) {
@@ -540,7 +541,13 @@ function renderArchive() {
       <button class="btn-info" style="font-size:12px;padding:7px 16px;margin-left:auto" onclick="downloadPDF('${esc(archiveResult.load_number)}', true, true)">⬇ Download PDF</button>
     </div>
     ${renderLoadCard(archiveResult, true)}` : ''}
-    ${!archiveResult && !archiveError ? `
+    ${state.archiveSearching ? `
+    <div class="surface" style="text-align:center;padding:48px 20px;color:#7a8499">
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+        <div class="spinner"></div>
+        <span style="font-size:14px">Searching archive for #${esc(state.archiveQuery)}…</span>
+      </div>
+    </div>` : !archiveResult && !archiveError ? `
     <div class="surface" style="text-align:center;padding:48px 20px;color:#7a8499">
       <div style="font-size:32px;margin-bottom:12px">🗂</div>
       <div class="mono" style="font-size:18px;text-transform:uppercase;margin-bottom:6px">Archive Search</div>
@@ -1241,20 +1248,31 @@ async function searchArchive() {
   const input = document.getElementById('archive-input');
   const query = (input ? input.value : state.archiveQuery).trim();
   if (!query) return showToast('Enter a load number','err');
-  setState({archiveQuery: query, archiveResult: null, archiveError: null});
+
+  // Show searching state immediately
+  setState({archiveQuery: query, archiveResult: null, archiveError: null, archiveSearching: true});
+
   try {
     const res = await api('searchArchive', {load_number: query});
     if (res.error) {
-      setState({archiveError: res.error});
+      setState({archiveError: res.error, archiveSearching: false});
     } else {
-      setState({archiveResult: res.truck});
+      setState({archiveResult: res.truck, archiveSearching: false});
     }
   } catch(e) {
-    setState({archiveError: e.message || 'Error searching archive'});
+    setState({archiveError: e.message || 'Error searching archive', archiveSearching: false});
   }
 }
 
 // ── Boot ─────────────────────────────────────────────────
+// Keep Apps Script container warm — ping every 4 minutes
+// This prevents the 3-5s cold start delay on the next real request
+(function keepAlive() {
+  setInterval(async () => {
+    try { await fetch(APPS_SCRIPT_URL + '?action=ping', {method:'GET', redirect:'follow'}); } catch(e) {}
+  }, 4 * 60 * 1000); // every 4 minutes
+})();
+
 (async function boot() {
   // Restore session from sessionStorage (survives refresh/back)
   try {
