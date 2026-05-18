@@ -944,8 +944,12 @@ function downloadPDF(loadNum, showPay=true) {
   // Both admin and carrier PDFs show only the active (visible) stops
   const stops       = activeNames ? allStops.filter(s => activeNames.includes(s.name)) : allStops;
 
-  const totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
-  const totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
+  // Only count active (visible) shipments for totals
+  const activeShipments = activeNames
+    ? (truck.shipments||[]).filter(s => activeNames.includes(s.consignee))
+    : (truck.shipments||[]);
+  const totalW = activeShipments.reduce((a,s)=>a+s.weight,0);
+  const totalP = activeShipments.reduce((a,s)=>a+s.pallets,0);
 
   // Get which stops are currently expanded for this load
   const openStops = state.expandedStops[loadNum] || new Set();
