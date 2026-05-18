@@ -532,7 +532,12 @@ function renderArchive() {
     <div style="background:rgba(244,91,105,.08);border:1px solid rgba(244,91,105,.25);border-radius:10px;padding:16px 20px;color:#f45b69;font-size:14px">
       ${esc(archiveError)}
     </div>` : ''}
-    ${archiveResult ? renderLoadCard(archiveResult, true) : ''}
+    ${archiveResult ? `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="label" style="color:#7a8499">Load #${esc(archiveResult.load_number)} — Archive Record</div>
+      <button class="btn-info" style="font-size:12px;padding:7px 16px;margin-left:auto" onclick="downloadPDF('${esc(archiveResult.load_number)}', true, true)">⬇ Download PDF</button>
+    </div>
+    ${renderLoadCard(archiveResult, true)}` : ''}
     ${!archiveResult && !archiveError ? `
     <div class="surface" style="text-align:center;padding:48px 20px;color:#7a8499">
       <div style="font-size:32px;margin-bottom:12px">🗂</div>
@@ -968,8 +973,10 @@ async function confirmDispatch(loadNum) {
 }
 
 // ── PDF Download ─────────────────────────────────────────
-function downloadPDF(loadNum, showPay=true) {
-  const truck = state.trucks.find(t => t.load_number === loadNum);
+function downloadPDF(loadNum, showPay=true, fromArchive=false) {
+  const truck = fromArchive
+    ? state.archiveResult
+    : (state.trucks.find(t => t.load_number === loadNum) || state.archiveResult);
   if (!truck) return;
 
   const allStops    = groupStops(truck.shipments);
