@@ -38,17 +38,14 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{min-height:100vh}
-body{background:#0d0f14;color:#e8ecf4;font-family:'Barlow',sans-serif}
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(245,166,35,.07) 0%,transparent 60%),
-             radial-gradient(ellipse 60% 40% at 80% 110%,rgba(91,141,238,.06) 0%,transparent 60%)}
-#app{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:0 16px 100px}
+body{background:#0a0a0b;color:#e8e0d0;font-family:'Barlow',sans-serif}
+#app{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:0 16px 100px}
 .mono{font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:.02em}
-.label{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
-       letter-spacing:.15em;text-transform:uppercase;color:#7a8499}
-.card{background:#161a22;border:1px solid #2a3040;border-radius:14px;padding:22px 24px}
-.card-sm{background:#161a22;border:1px solid #2a3040;border-radius:10px;padding:14px 18px}
-.surface{background:#1e2330;border-radius:10px;padding:14px 18px;border:1px solid #2a3040}
+.label{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+       letter-spacing:.15em;text-transform:uppercase;color:#555}
+.card{background:#111112;border:1px solid #222;border-radius:6px;padding:18px 20px}
+.card-sm{background:#111112;border:1px solid #222;border-radius:4px;padding:10px 14px}
+.surface{background:#111112;border-radius:4px;padding:12px 16px;border:1px solid #1e1e1e}
 button{cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;
        letter-spacing:.06em;text-transform:uppercase;border:none;border-radius:8px;
        padding:10px 20px;font-size:14px;transition:opacity .15s,transform .1s}
@@ -60,29 +57,31 @@ button:disabled{opacity:.4;cursor:not-allowed;transform:none}
 .btn-ghost{background:rgba(255,255,255,.05);color:#e8ecf4;border:1px solid #2a3040}
 .btn-info{background:rgba(91,141,238,.13);color:#5b8dee;border:1px solid rgba(91,141,238,.3)}
 .btn-success{background:rgba(62,207,142,.13);color:#3ecf8e;border:1px solid rgba(62,207,142,.3)}
-input,select{background:#1e2330;border:1.5px solid #2a3040;border-radius:8px;
-             color:#e8ecf4;font-family:'Barlow',sans-serif;font-size:15px;
-             padding:10px 14px;outline:none;width:100%;transition:border-color .2s,box-shadow .2s}
-input:focus,select:focus{border-color:#f5a623;box-shadow:0 0 0 3px rgba(245,166,35,.12)}
-input::placeholder{color:#3a4050}
-select option{background:#1e2330}
+input,select{background:#0f0f10;border:1px solid #2a2a2a;border-radius:4px;
+             color:#e8e0d0;font-family:'Barlow',sans-serif;font-size:14px;
+             padding:9px 12px;outline:none;width:100%;transition:border-color .2s}
+input:focus,select:focus{border-color:#f5a623;box-shadow:0 0 0 2px rgba(245,166,35,.15)}
+input::placeholder{color:#333}
+select option{background:#0f0f10}
 .badge{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:3px 10px;
        font-size:12px;font-weight:600;font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
 .badge-amber{background:rgba(245,166,35,.12);color:#f5a623;border:1px solid rgba(245,166,35,.25)}
 .badge-green{background:rgba(62,207,142,.12);color:#3ecf8e;border:1px solid rgba(62,207,142,.25)}
 .badge-blue{background:rgba(91,141,238,.12);color:#5b8dee;border:1px solid rgba(91,141,238,.25)}
 .badge-muted{background:rgba(255,255,255,.06);color:#7a8499;border:1px solid #2a3040}
-.tab-bar{display:flex;gap:4px;background:#1e2330;border-radius:10px;padding:4px;margin-bottom:20px}
-.tab{flex:1;padding:9px 12px;border-radius:7px;font-family:'Barlow Condensed',sans-serif;
-     font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-     color:#7a8499;background:none;border:none;cursor:pointer;transition:all .15s}
-.tab.active{background:#161a22;color:#f5a623;border:1px solid #2a3040}
+.tab-bar{display:flex;gap:2px;background:#0a0a0b;border-bottom:2px solid #1a1a1a;padding:0;margin-bottom:20px}
+.tab{flex:1;padding:10px 14px;border-radius:0;font-family:'Barlow Condensed',sans-serif;
+     font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+     color:#555;background:none;border:none;border-bottom:2px solid transparent;
+     margin-bottom:-2px;cursor:pointer;transition:all .15s}
+.tab.active{color:#f5a623;border-bottom-color:#f5a623;background:rgba(245,166,35,.04)}
 .divider{height:1px;background:#2a3040;margin:16px 0}
-.stop-card{border:1px solid #2a3040;border-radius:12px;overflow:hidden;margin-bottom:12px;background:#161a22}
-.stop-header{padding:15px 18px;display:flex;align-items:flex-start;justify-content:space-between;
-             gap:12px;cursor:pointer;border-left:4px solid transparent;transition:background .15s;user-select:none}
-.stop-header:hover{background:rgba(255,255,255,.02)}
-.stop-body{display:none;padding:0 18px 16px;border-top:1px solid #2a3040}
+.stop-card{border:1px solid #1a1a1a;border-radius:4px;overflow:hidden;margin-bottom:8px;background:#0f0f10;transition:opacity .3s}
+.stop-card.done-stop{opacity:.35}
+.stop-header{padding:12px 16px;display:flex;align-items:flex-start;justify-content:space-between;
+             gap:10px;cursor:pointer;border-left:3px solid transparent;transition:background .15s;user-select:none}
+.stop-header:hover{background:rgba(245,166,35,.03)}
+.stop-body{display:none;padding:0 16px 14px;border-top:1px solid #1a1a1a}
 .stop-body.open{display:block}
 .tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
 .tbl th{font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
@@ -113,6 +112,15 @@ select option{background:#1e2330}
 .page-fade{animation:pf .25s ease}
 @keyframes pf{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .route-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.done-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(62,207,142,.15);
+            color:#3ecf8e;border:1px solid rgba(62,207,142,.3);border-radius:3px;
+            padding:1px 7px;font-size:10px;font-weight:700;font-family:'Barlow Condensed',sans-serif;
+            letter-spacing:.06em;text-transform:uppercase}
+.manager-section{background:#0f0f10;border:1px solid #1a1a1a;border-radius:4px;margin-bottom:12px}
+.manager-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;
+                cursor:pointer;user-select:none}
+.manager-header:hover{background:rgba(245,166,35,.03)}
+.badge-purple{background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.25)}
 .pickup-search{position:relative}
 .pickup-dropdown{position:absolute;top:100%;left:0;right:0;background:#1e2330;border:1.5px solid #f5a623;border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:50}
 .pickup-option{padding:9px 14px;cursor:pointer;font-size:13px;color:#e8ecf4;border-bottom:0.5px solid #2a3040}
@@ -237,7 +245,11 @@ let state = {
   archiveResult:null,    // truck object from archive search
   archiveError:null,     // error string
   archiveQuery:'',       // last searched load number
-  archiveSearching:false // true while waiting for response
+  archiveSearching:false,// true while waiting for response
+  showGPSMap:false,      // show GPS map modal
+  gpsLocations:[],       // [{username, lat, lng, timestamp}]
+  gpsLoading:false,      // loading GPS data
+  carrierLocation:null   // current carrier's own location
 };
 
 function setState(patch) {
@@ -260,20 +272,24 @@ function showToast(msg, type='ok') {
 function renderHeader() {
   const s = state.session;
   return `
-  <div style="padding:24px 0 20px;border-bottom:1px solid #2a3040;margin-bottom:24px;
-              display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:14px">
-      <div style="width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:3px">
-        <img src="${LOGO_B64}" style="width:42px;height:42px;object-fit:contain">
-      </div>
+  <div style="background:#0a0a0b;border-bottom:2px solid #f5a623;margin-bottom:0;
+              display:flex;align-items:center;justify-content:space-between;gap:12px;
+              padding:10px 16px;position:sticky;top:0;z-index:100">
+    <div style="display:flex;align-items:center;gap:10px">
+      <img src="${LOGO_B64}" style="width:32px;height:32px;object-fit:contain;opacity:.9">
       <div>
-        <div class="mono" style="font-size:20px;text-transform:uppercase;letter-spacing:.03em">Providence Carrier Portal</div>
-        <div style="font-size:12px;color:#7a8499;margin-top:2px">Over-The-Road Delivery Management</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;
+                    text-transform:uppercase;letter-spacing:.08em;color:#f5a623;line-height:1">Providence</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;
+                    letter-spacing:.2em;text-transform:uppercase;color:#555;margin-top:1px">Carrier Portal</div>
       </div>
     </div>
-    ${s?`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span class="badge ${s.role==='admin'?'badge-amber':'badge-blue'}">${s.role==='admin'?'⚡ Admin':'🚛 Carrier'} · ${esc(s.name)}</span>
-      <button class="btn-ghost" style="padding:7px 14px;font-size:12px" onclick="handleLogout()">Log out</button>
+    ${s?`<div style="display:flex;align-items:center;gap:8px">
+      <span style="font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
+                   letter-spacing:.06em;text-transform:uppercase;color:${s.role==='admin'?'#f5a623':'#888'}">
+        ${s.role==='admin'?'⚡':''} ${esc(s.name)}
+      </span>
+      <button class="btn-ghost" style="padding:5px 12px;font-size:11px" onclick="handleLogout()">Log out</button>
     </div>`:''}
   </div>`;
 }
@@ -341,9 +357,9 @@ function renderLoadCard(truck, isAdmin=false) {
         </label>
       </div>` : '';
     return `
-    <div class="stop-card" style="opacity:${!isAdmin && !isActive ? '0.4' : '1'}">
+    <div class="stop-card ${truck.stop_status&&truck.stop_status[st.name]&&truck.stop_status[st.name].done?'done-stop':''}" style="opacity:${!isAdmin && !isActive ? '0.15' : '1'}">
       ${adminCheck}
-      <div class="stop-header" style="border-left-color:${color}" onclick="toggleStop(${i},'${esc(truck.load_number)}')">
+      <div class="stop-header" style="border-left-color:${color};${(truck.stop_status&&truck.stop_status[st.name]&&truck.stop_status[st.name].done)?'opacity:.4':''}" onclick="toggleStop(${i},'${esc(truck.load_number)}')">
         <div style="display:flex;gap:12px;flex:1;min-width:0">
           <div style="width:30px;height:30px;border-radius:8px;background:${color};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;color:#0d0f14;flex-shrink:0">${isAdmin ? i+1 : (isActive ? ++driverStopNum : i+1)}</div>
           <div style="flex:1;min-width:0">
@@ -370,6 +386,28 @@ function renderLoadCard(truck, isAdmin=false) {
           <span id="chev-${i}" style="color:#7a8499;font-size:16px;transition:transform .2s">▾</span>
         </div>
       </div>
+      ${!isAdmin ? `
+      <div style="padding:6px 16px 10px;display:flex;align-items:center;gap:10px" onclick="event.stopPropagation()">
+        ${truck.stop_status&&truck.stop_status[st.name]&&truck.stop_status[st.name].done ? `
+        <span class="done-badge">✓ Done</span>
+        <span style="font-size:10px;color:#555">${esc((truck.stop_status[st.name].timestamp)||'')}</span>
+        <button onclick="toggleStopDone('${esc(truck.load_number)}','${esc(st.name)}',false)"
+                style="margin-left:auto;background:none;border:1px solid #333;color:#555;border-radius:3px;
+                       padding:3px 10px;font-size:10px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;
+                       letter-spacing:.06em;text-transform:uppercase">Undo</button>
+        ` : `
+        <button onclick="toggleStopDone('${esc(truck.load_number)}','${esc(st.name)}',true)"
+                style="background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.3);color:#3ecf8e;
+                       border-radius:3px;padding:5px 16px;font-size:11px;cursor:pointer;font-weight:700;
+                       font-family:'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase">
+          ✓ Mark Done
+        </button>`}
+      </div>` : `
+      ${truck.stop_status&&truck.stop_status[st.name]&&truck.stop_status[st.name].done ? `
+      <div style="padding:4px 16px 8px;display:flex;align-items:center;gap:8px">
+        <span class="done-badge">✓ Done</span>
+        <span style="font-size:10px;color:#555">${esc(truck.stop_status[st.name].by||'')} · ${esc(truck.stop_status[st.name].timestamp||'')}</span>
+      </div>` : ''}`}
       <div class="stop-body" id="stop-body-${i}">
         <div style="overflow-x:auto">
           <table class="tbl">
@@ -612,7 +650,10 @@ function renderAdminLoads() {
   <div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div class="label">${active.length} active loads</div>
-      <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshLoads()">↻ Refresh</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="showGPSMap()">🗺 Carrier Map</button>
+        <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="refreshLoads()">↻ Refresh</button>
+      </div>
     </div>
     ${sections}
   </div>`;
@@ -654,12 +695,15 @@ function renderAdminDrivers() {
             <div style="font-size:12px;color:#7a8499">@${esc(uid)} · ${(u.loads||[]).length} load${(u.loads||[]).length!==1?'s':''} assigned</div>
           </div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-info" style="font-size:12px;padding:6px 14px" onclick="setState({expandedUser:'${uid}'==='${state.expandedUser}'?null:'${uid}'})">${isExp?'Hide loads':'Assign Loads'}</button>
+          <button class="${u.is_manager?'btn-success':'btn-ghost'}" style="font-size:12px;padding:6px 14px"
+                  onclick="setManagerStatus('${uid}',${!u.is_manager})">
+            ${u.is_manager?'★ Manager':'Make Manager'}</button>
           <button class="btn-danger" style="font-size:12px;padding:6px 14px" onclick="handleDeleteUser('${uid}')">Remove</button>
         </div>
       </div>
-      ${isExp?`<div style="margin-top:14px;border-top:1px solid #2a3040;padding-top:14px">
+      ${isExp?`<div style="margin-top:14px;border-top:1px solid #1a1a1a;padding-top:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div class="label">Assign loads to ${esc(u.name)}</div>
           <button class="btn-success" style="font-size:12px;padding:7px 18px" onclick="saveLoads('${uid}')">✓ Save</button>
@@ -668,6 +712,22 @@ function renderAdminDrivers() {
         <div style="margin-top:12px;display:flex;justify-content:flex-end">
           <button class="btn-success" style="font-size:12px;padding:7px 18px" onclick="saveLoads('${uid}')">✓ Save Assignments</button>
         </div>
+        ${u.is_manager?`
+        <div style="margin-top:16px;border-top:1px solid #1a1a1a;padding-top:12px">
+          <div class="label" style="margin-bottom:8px;color:#a78bfa">Team Members (managed by ${esc(u.name)})</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${Object.entries(state.users).filter(([tid])=>tid!==uid).map(([tid,tu])=>`
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+                          background:${(u.manages||[]).includes(tid)?'rgba(167,139,250,.12)':'#0f0f10'};
+                          border:1px solid ${(u.manages||[]).includes(tid)?'rgba(167,139,250,.3)':'#222'};
+                          border-radius:4px;padding:4px 10px">
+              <input type="checkbox" ${(u.manages||[]).includes(tid)?'checked':''}
+                     onchange="updateManages('${uid}','${tid}',this.checked)"
+                     style="width:14px;height:14px;accent-color:#a78bfa;cursor:pointer">
+              <span style="font-size:12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;color:#a78bfa">${esc(tu.name)}</span>
+            </label>`).join('')}
+          </div>
+        </div>`:''}
       </div>`:''}
       ${assignedBadges}
     </div>`;
@@ -803,9 +863,100 @@ function render() {
                 </div>`;
               }).join('')}
         </div>`;
+
+        // Manager view: show team members' loads and stop status below own loads
+        const mgr = state.users[state.session.id];
+        if (mgr && mgr.is_manager && (mgr.manages||[]).length > 0) {
+          html += `
+          <div style="margin-top:24px;border-top:2px solid #1a1a1a;padding-top:20px">
+            <div class="label" style="margin-bottom:14px;color:#a78bfa">★ Your Team</div>
+            ${mgr.manages.map(tid => {
+              const tm = state.users[tid];
+              if (!tm) return '';
+              const tmLoads = (tm.loads||[]).map(ln=>state.trucks.find(t=>t.load_number===ln)).filter(Boolean);
+              return '<div style="background:#0f0f10;border:1px solid #1a1a1a;border-radius:4px;margin-bottom:12px;overflow:hidden">' +
+                '<div style="padding:10px 14px;background:#111;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:10px">' +
+                  '<div style="width:28px;height:28px;border-radius:50%;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:14px;color:#a78bfa">' + esc(tm.name.charAt(0).toUpperCase()) + '</div>' +
+                  '<div style="font-weight:600;font-size:14px;color:#a78bfa">' + esc(tm.name) + '</div>' +
+                  '<div style="font-size:11px;color:#555;margin-left:4px">' + tmLoads.length + ' load' + (tmLoads.length!==1?'s':'') + '</div>' +
+                '</div>' +
+                (tmLoads.length === 0 ? '<div style="padding:14px;font-size:12px;color:#555">No loads assigned</div>' :
+                tmLoads.map(t => {
+                  const allS  = groupStops(t.shipments);
+                  const actN  = t.active_stops&&t.active_stops.length>0?t.active_stops:null;
+                  const stps  = actN?allS.filter(s=>actN.includes(s.name)):allS;
+                  const done  = stps.filter(s=>t.stop_status&&t.stop_status[s.name]&&t.stop_status[s.name].done).length;
+                  return '<div style="padding:10px 14px;border-bottom:1px solid #1a1a1a">' +
+                    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
+                      '<span class="mono" style="font-size:18px;color:#f5a623">#' + esc(t.load_number) + '</span>' +
+                      '<span style="font-size:11px;color:#555">' + esc(t.carrier) + '</span>' +
+                      '<span style="margin-left:auto;font-size:11px;color:' + (done===stps.length&&stps.length>0?'#3ecf8e':'#555') + '">' + done + '/' + stps.length + ' done</span>' +
+                    '</div>' +
+                    stps.map(s => {
+                      const st   = t.stop_status&&t.stop_status[s.name];
+                      const isDn = st&&st.done;
+                      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:' + (isDn?0.4:1) + '">' +
+                        '<span style="font-size:10px;color:' + (isDn?'#3ecf8e':'#555') + '">' + (isDn?'✓':'○') + '</span>' +
+                        '<span style="font-size:12px;color:' + (isDn?'#555':'#e8e0d0') + '">' + esc(s.name) + '</span>' +
+                        (isDn&&st.timestamp?'<span style="font-size:10px;color:#444;margin-left:auto">' + esc(st.timestamp) + '</span>':'') +
+                      '</div>';
+                    }).join('') +
+                  '</div>';
+                }).join('')) +
+              '</div>';
+            }).join('')}
+          </div>`;
+        }
       }
       break;
   }
+  // GPS Map Modal
+  if (state.showGPSMap) {
+    const locs   = state.gpsLocations;
+    const users  = state.users;
+    html += `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px">
+      <div style="background:#0f0f10;border:1px solid #222;border-radius:6px;width:100%;max-width:700px;max-height:90vh;overflow:auto">
+        <div style="padding:16px 20px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#f5a623">🗺 Carrier Locations</div>
+          <button class="btn-ghost" style="font-size:12px;padding:5px 12px" onclick="setState({showGPSMap:false})">✕ Close</button>
+        </div>
+        <div style="padding:16px 20px">
+          ${state.gpsLoading ? '<div style="text-align:center;padding:40px;color:#555"><div class="spinner" style="margin:0 auto 12px"></div>Loading locations…</div>' :
+          locs.length === 0 ? '<div style="text-align:center;padding:40px;color:#555">No carrier locations available.<br><span style="font-size:12px">Carriers must be logged in with location sharing enabled.</span></div>' :
+          locs.map(loc => {
+            const u = users[loc.username] || {};
+            const loads = (u.loads||[]).join(', ') || '—';
+            return `
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #1a1a1a">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(91,141,238,.15);border:1px solid rgba(91,141,238,.3);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;color:#5b8dee;flex-shrink:0">${esc(loc.username.charAt(0).toUpperCase())}</div>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:14px">${esc(loc.username)}</div>
+                <div style="font-size:11px;color:#555;margin-top:2px">📍 ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)} · Updated ${esc(loc.timestamp)}</div>
+                <div style="font-size:11px;color:#f5a623;margin-top:1px">Loads: ${esc(loads)}</div>
+              </div>
+              <a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank"
+                 style="background:rgba(91,141,238,.12);border:1px solid rgba(91,141,238,.3);color:#5b8dee;
+                        border-radius:4px;padding:5px 12px;font-size:11px;text-decoration:none;
+                        font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase">
+                Open Map ↗
+              </a>
+            </div>`;
+          }).join('')}
+          ${!state.gpsLoading && locs.length > 0 ? `
+          <div style="margin-top:14px;text-align:center">
+            <a href="https://www.google.com/maps/dir/${locs.map(l=>l.lat+','+l.lng).join('/')}" target="_blank"
+               style="display:inline-block;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);
+                      color:#f5a623;border-radius:4px;padding:8px 20px;text-decoration:none;
+                      font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase">
+              🗺 View All on Google Maps ↗
+            </a>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }
+
   app.innerHTML = html;
 }
 
@@ -825,6 +976,7 @@ function toggleStop(i, loadNum) {
 }
 
 function handleLogout() {
+  stopGPS();
   setState({session:null,view:'login',selectedLoad:null,expandedUser:null});
 }
 
@@ -843,6 +995,7 @@ async function handleLogin() {
   if (hash!==u.password_hash) return showToast('Incorrect password','err');
   await refreshAll();
   setState({session:{role:'driver',name:u.name,id:username},view:'driver'});
+  startGPS(); // begin tracking on login
 }
 
 async function handleRegister() {
@@ -1265,6 +1418,107 @@ async function searchArchive() {
 }
 
 // ── Boot ─────────────────────────────────────────────────
+// ── GPS Tracking ─────────────────────────────────────────
+let gpsWatchId = null;
+
+function startGPS() {
+  if (!navigator.geolocation) return;
+  if (gpsWatchId) return; // already watching
+  gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      if (!state.session || state.session.role === 'admin') return;
+      const { latitude: lat, longitude: lng } = pos.coords;
+      const timestamp = new Date().toLocaleString('en-US',{
+        month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true
+      });
+      // Save to sheet (fire and forget)
+      api('saveLocation', {
+        username:  state.session.id || state.session.name,
+        lat:       lat.toFixed(6),
+        lng:       lng.toFixed(6),
+        timestamp
+      }).catch(()=>{});
+      // Update local state for map
+      state.carrierLocation = { lat, lng, timestamp };
+    },
+    err => console.log('GPS error:', err.message),
+    { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+  );
+}
+
+function stopGPS() {
+  if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+}
+
+// ── Stop Done toggle ──────────────────────────────────────
+async function toggleStopDone(loadNum, stopName, done) {
+  const username = state.session?.id || state.session?.name || '';
+  const now = new Date().toLocaleString('en-US',{
+    month:'short',day:'numeric',year:'numeric',
+    hour:'numeric',minute:'2-digit',hour12:true
+  });
+  // Optimistic UI update
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const stop_status = {...(t.stop_status||{})};
+    stop_status[stopName] = done ? {done:true, by:username, timestamp:now} : {done:false, by:'', timestamp:''};
+    return {...t, stop_status};
+  });
+  setState({});
+  try {
+    await api('markStopDone', {
+      username, load_number: loadNum, stop_name: stopName,
+      done: done ? 'true' : 'false', timestamp: now
+    });
+  } catch(e) {
+    showToast('Error saving stop status', 'err');
+  }
+}
+
+// ── Manager view ──────────────────────────────────────────
+async function setManagerStatus(uid, isManager) {
+  try {
+    const u = state.users[uid];
+    await api('setManager', {
+      username: uid,
+      is_manager: isManager ? 'true' : 'false',
+      manages: (u.manages||[]).join('|')
+    });
+    const res = await api('getUsers');
+    setState({users: res.users||{}});
+    showToast(isManager ? `${uid} is now a manager` : `${uid} is no longer a manager`);
+  } catch(e) { showToast(e.message||'Error','err'); }
+}
+
+async function updateManages(uid, teammateUid, add) {
+  const u = state.users[uid];
+  let manages = [...(u.manages||[])];
+  if (add && !manages.includes(teammateUid)) manages.push(teammateUid);
+  if (!add) manages = manages.filter(m => m !== teammateUid);
+  try {
+    await api('setManager', {
+      username: uid,
+      is_manager: 'true',
+      manages: manages.join('|')
+    });
+    const res = await api('getUsers');
+    setState({users: res.users||{}});
+    showToast('Team updated');
+  } catch(e) { showToast(e.message||'Error','err'); }
+}
+
+// ── GPS Map modal ─────────────────────────────────────────
+async function showGPSMap() {
+  setState({showGPSMap: true, gpsLocations: [], gpsLoading: true});
+  try {
+    const res = await api('getLocations');
+    setState({gpsLocations: res.locations||[], gpsLoading: false});
+  } catch(e) {
+    setState({gpsLoading: false});
+    showToast('Error loading locations','err');
+  }
+}
+
 // Keep Apps Script container warm — ping every 4 minutes
 // This prevents the 3-5s cold start delay on the next real request
 (function keepAlive() {
@@ -1281,6 +1535,7 @@ async function searchArchive() {
       const session = JSON.parse(saved);
       state.session = session;
       state.view = session.role === 'admin' ? 'admin' : 'driver';
+      if (session.role !== 'admin') setTimeout(startGPS, 1000);
     } else {
       state.view = 'login'; // show login immediately — don't wait for data
     }
