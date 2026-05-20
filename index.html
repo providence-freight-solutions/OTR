@@ -1329,8 +1329,12 @@ function filterPickups(loadNum, query) {
     ? state.addressBook.filter(loc=>loc.name.toLowerCase().includes(q) || loc.address.toLowerCase().includes(q))
     : state.addressBook;
   if (!results.length || !q) { dd.style.display='none'; return; }
-  dd.innerHTML = results.slice(0,20).map(loc=>`
-    <div class="pickup-option" onclick="addPickup('${loadNum}','${loc.name.replace(/'/g,"\'")}','${loc.address.replace(/'/g,"\'")}')">
+    window.__pickupCandidates = window.__pickupCandidates || {};
+  const candidateKey = 'pk_' + loadNum;
+  window.__pickupCandidates[candidateKey] = results.slice(0,20);
+
+  dd.innerHTML = window.__pickupCandidates[candidateKey].map((loc, i)=>`
+    <div class="pickup-option" onclick="addPickupByIndex('${loadNum}',${i})">
       <div>${loc.name}</div>
       <div class="opt-addr">${loc.address}</div>
     </div>`).join('');
@@ -1343,6 +1347,14 @@ function getDefaultPickups() {
   return pw
     ? [{name: pw.name, address: pw.address, datetime:'', notes:''}]
     : [{name:'PROVIDENCE WAREHOUSE', address:'Flanders, NJ', datetime:'', notes:''}];
+}
+
+function addPickupByIndex(loadNum, i) {
+  const key = 'pk_' + loadNum;
+  const loc = (window.__pickupCandidates && window.__pickupCandidates[key]) ?
+              window.__pickupCandidates[key][i] : null;
+  if (!loc) return;
+  addPickup(loadNum, loc.name, loc.address);
 }
 
 function addPickup(loadNum, name, address) {
