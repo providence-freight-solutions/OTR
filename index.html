@@ -999,12 +999,14 @@ async function handleLogin() {
     else showToast('Incorrect admin password','err');
     return;
   }
-  const u = state.users[username];
+  // Case-insensitive user lookup
+  const userKey = Object.keys(state.users).find(k => k.toLowerCase() === username);
+  const u = userKey ? state.users[userKey] : null;
   if (!u) return showToast('Username not found','err');
   const hash = await hashPassword(password);
   if (hash!==u.password_hash) return showToast('Incorrect password','err');
   await refreshAll();
-  setState({session:{role:'driver',name:u.name,id:username},view:'driver'});
+  setState({session:{role:'driver',name:u.name,id:userKey},view:'driver'});
   startGPS(); // begin tracking on login
 }
 
