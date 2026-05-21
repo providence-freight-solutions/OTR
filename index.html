@@ -756,6 +756,457 @@ function renderAdminDrivers() {
   </div>`;
 }
 
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById('app');
+  if (!app) return;
+  let html = renderHeader();
+  switch(state.view) {
+    case 'loading':
+      html += `<div style="text-align:center;padding:80px 20px;color:#555">
+        <div class="spinner" style="margin:0 auto 16px"></div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Loading…</div>
+      </div>`;
+      break;
+    case 'login':
+      html += renderLogin();
+      break;
+    case 'admin':
+      if (state.selectedLoad) {
+        const truck = state.trucks.find(t=>t.load_number===state.selectedLoad) || state.archiveResult;
+        html += `<div style="padding:16px 0">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+            <button class="btn-ghost" style="font-size:12px" onclick="setState({selectedLoad:null})">← Back to all loads</button>
+            ${truck ? `<button class="btn-info" style="font-size:12px;padding:7px 16px" onclick="downloadPDF('${truck.load_number}', true)">⬇ Download PDF</button>` : ''}
+          </div>
+          ${truck?renderLoadCard(truck, true):'<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}`;
+        if (!state.addressBook || state.addressBook.length === 0) {
+          api('getAddressBook').then(r => { if(r.locations) state.addressBook = r.locations; }).catch(()=>{});
+        }
+        html += `</div>`;
+      } else {
+        html += `<div style="padding:16px 0">
+          <div class="tab-bar">
+            <button class="tab ${state.adminTab==='loads'?'active':''}" onclick="setState({adminTab:'loads'})">All Loads</button>
+            <button class="tab ${state.adminTab==='drivers'?'active':''}" onclick="setState({adminTab:'drivers'})">Carriers &amp; Assignments</button>
+            <button class="tab ${state.adminTab==='archive'?'active':''}" onclick="setState({adminTab:'archive',archiveResult:null,archiveError:null})">🗂 Archive</button>
+          </div>
+          ${state.adminTab==='loads'?renderAdminLoads():state.adminTab==='drivers'?renderAdminDrivers():renderArchive()}
+        </div>`;
+      }
+      break;
+    case 'driver': {
+      const myLoads = Object.values(state.users).find(u=>u.name===state.session?.id||u.name===state.session?.name);
+      const assignedNums = myLoads ? (myLoads.loads||[]) : [];
+      if (state.selectedLoad) {
+        const truck = state.trucks.find(t=>t.load_number===state.selectedLoad);
+        html += `<div style="padding:16px 0">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+            <button class="btn-ghost" style="font-size:12px" onclick="setState({selectedLoad:null})">← My Loads</button>
+            ${truck ? `
+            <button class="btn-info" style="font-size:12px;padding:7px 16px" onclick="downloadPDF('${truck.load_number}', false)">⬇ Driver Dispatch Download</button>
+            <button class="btn-success" style="font-size:12px;padding:7px 16px" onclick="downloadPDF('${truck.load_number}', true)">⬇ Download Rate Confirmation</button>` : ''}
+          </div>
+          ${truck?renderLoadCard(truck):'<div class="surface" style="color:#7a8499;padding:20px">Load not found.</div>'}
+        </div>`;
+      } else {
+        const myTrucks = assignedNums.map(ln=>state.trucks.find(t=>t.load_number===ln)).filter(Boolean);
+        const cards = myTrucks.map(t=>{
+          const allStopsForCard = groupStops(t.shipments);
+          const activeNamesForCard = t.active_stops && t.active_stops.length > 0 ? t.active_stops : null;
+          const stops = activeNamesForCard ? allStopsForCard.filter(s=>activeNamesForCard.includes(s.name)) : allStopsForCard;
+          const activeShipments = activeNamesForCard
+            ? (t.shipments||[]).filter(s=>activeNamesForCard.includes(s.consignee))
+            : (t.shipments||[]);
+          const tw = activeShipments.reduce((a,s)=>a+s.weight,0);
+          const activeOrders = activeShipments.length;
+          const doneCount = stops.filter(s=>t.stop_status&&t.stop_status[s.name]&&t.stop_status[s.name].done).length;
+          return `
+          <div class="card" style="cursor:pointer;border-left:3px solid #f5a623;margin-bottom:12px" onclick="setState({selectedLoad:'${esc(t.load_number)}'})">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+              <div>
+                <div class="label" style="margin-bottom:4px">Load Number</div>
+                <div class="mono" style="font-size:32px;color:#f5a623;line-height:1">${esc(t.load_number)}</div>
+                <div style="font-size:12px;color:#7a8499;margin-top:4px">${esc(t.carrier)}</div>
+              </div>
+              <div style="display:flex;gap:20px;text-align:center">
+                <div><div class="mono" style="font-size:22px">${stops.length}</div><div class="label">Stops</div></div>
+                <div><div class="mono" style="font-size:22px">${activeOrders}</div><div class="label">Orders</div></div>
+                <div><div class="mono" style="font-size:22px">${tw.toLocaleString()}</div><div class="label">Lbs</div></div>
+                <div><div class="mono" style="font-size:22px;color:${doneCount===stops.length&&stops.length>0?'#3ecf8e':'#e8e0d0'}">${doneCount}/${stops.length}</div><div class="label">Done</div></div>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+
+        html += `<div style="padding:16px 0">`;
+        if (!myTrucks.length) {
+          html += `<div class="surface" style="text-align:center;padding:40px;color:#7a8499">No loads assigned yet.</div>`;
+        } else {
+          html += cards;
+        }
+
+        // Manager view: show team members' loads and stop status below own loads
+        const mgr = state.users[state.session?.id] || state.users[state.session?.name];
+        if (mgr && mgr.is_manager && (mgr.manages||[]).length > 0) {
+          html += `
+          <div style="margin-top:24px;border-top:2px solid #1a1a1a;padding-top:20px">
+            <div class="label" style="margin-bottom:14px;color:#a78bfa">★ Your Team</div>
+            ${mgr.manages.map(tid => {
+              const tm = state.users[tid];
+              if (!tm) return '';
+              const tmLoads = (tm.loads||[]).map(ln=>state.trucks.find(t=>t.load_number===ln)).filter(Boolean);
+              return '<div style="background:#0f0f10;border:1px solid #1a1a1a;border-radius:4px;margin-bottom:12px;overflow:hidden">' +
+                '<div style="padding:10px 14px;background:#111;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:10px">' +
+                  '<div style="width:28px;height:28px;border-radius:50%;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:800;font-size:14px;color:#a78bfa">' + esc(tm.name.charAt(0).toUpperCase()) + '</div>' +
+                  '<div style="font-weight:600;font-size:14px;color:#a78bfa">' + esc(tm.name) + '</div>' +
+                  '<div style="font-size:11px;color:#555;margin-left:4px">' + tmLoads.length + ' load' + (tmLoads.length!==1?'s':'') + '</div>' +
+                '</div>' +
+                (tmLoads.length === 0 ? '<div style="padding:14px;font-size:12px;color:#555">No loads assigned</div>' :
+                tmLoads.map(t => {
+                  const allS  = groupStops(t.shipments);
+                  const actN  = t.active_stops&&t.active_stops.length>0?t.active_stops:null;
+                  const stps  = actN?allS.filter(s=>actN.includes(s.name)):allS;
+                  const done  = stps.filter(s=>t.stop_status&&t.stop_status[s.name]&&t.stop_status[s.name].done).length;
+                  return '<div style="padding:10px 14px;border-bottom:1px solid #1a1a1a">' +
+                    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
+                      '<span class="mono" style="font-size:18px;color:#f5a623">#' + esc(t.load_number) + '</span>' +
+                      '<span style="font-size:11px;color:#555">' + esc(t.carrier) + '</span>' +
+                      '<span style="margin-left:auto;font-size:11px;color:' + (done===stps.length&&stps.length>0?'#3ecf8e':'#555') + '">' + done + '/' + stps.length + ' done</span>' +
+                    '</div>' +
+                    stps.map(s => {
+                      const st   = t.stop_status&&t.stop_status[s.name];
+                      const isDn = st&&st.done;
+                      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:' + (isDn?0.4:1) + '">' +
+                        '<span style="font-size:10px;color:' + (isDn?'#3ecf8e':'#555') + '">' + (isDn?'✓':'○') + '</span>' +
+                        '<span style="font-size:12px;color:' + (isDn?'#555':'#e8e0d0') + '">' + esc(s.name) + '</span>' +
+                        (isDn&&st.timestamp?'<span style="font-size:10px;color:#444;margin-left:auto">' + esc(st.timestamp) + '</span>':'') +
+                      '</div>';
+                    }).join('') +
+                  '</div>';
+                }).join('')) +
+              '</div>';
+            }).join('')}
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      break;
+    }
+  }
+
+  // GPS Map Modal
+  if (state.showGPSMap) {
+    const locs  = state.gpsLocations;
+    const users = state.users;
+    html += `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px">
+      <div style="background:#0f0f10;border:1px solid #222;border-radius:6px;width:100%;max-width:700px;max-height:90vh;overflow:auto">
+        <div style="padding:16px 20px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#f5a623">🗺 Carrier Locations</div>
+          <button class="btn-ghost" style="font-size:12px;padding:5px 12px" onclick="setState({showGPSMap:false})">✕ Close</button>
+        </div>
+        <div style="padding:16px 20px">
+          ${state.gpsLoading ? '<div style="text-align:center;padding:40px;color:#555"><div class="spinner" style="margin:0 auto 12px"></div>Loading locations…</div>' :
+          locs.length === 0 ? '<div style="text-align:center;padding:40px;color:#555">No carrier locations available.</div>' :
+          locs.map(loc => {
+            const u = users[loc.username] || {};
+            const loads = (u.loads||[]).join(', ') || '—';
+            return `<div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #1a1a1a">
+              <div style="width:36px;height:36px;border-radius:50%;background:rgba(91,141,238,.15);border:1px solid rgba(91,141,238,.3);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;color:#5b8dee;flex-shrink:0">${esc(loc.username.charAt(0).toUpperCase())}</div>
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:14px">${esc(loc.username)}</div>
+                <div style="font-size:11px;color:#555;margin-top:2px">📍 ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)} · ${esc(loc.timestamp)}</div>
+                <div style="font-size:11px;color:#f5a623;margin-top:1px">Loads: ${esc(loads)}</div>
+              </div>
+              <a href="https://www.google.com/maps?q=${loc.lat},${loc.lng}" target="_blank"
+                 style="background:rgba(91,141,238,.12);border:1px solid rgba(91,141,238,.3);color:#5b8dee;border-radius:4px;padding:5px 12px;font-size:11px;text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Open Map ↗</a>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  app.innerHTML = html;
+}
+
+// ── Login ─────────────────────────────────────────────────
+function renderLogin() {
+  return `
+  <div style="max-width:380px;margin:60px auto;padding:0 16px">
+    <div class="card" style="text-align:center">
+      <img src="${LOGO_B64}" style="width:72px;height:72px;object-fit:contain;margin:0 auto 16px;display:block">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#f5a623;margin-bottom:4px">Providence</div>
+      <div style="font-size:12px;color:#555;margin-bottom:28px;font-family:'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase">Carrier Portal</div>
+      <input id="li-user" type="text" placeholder="Username" style="margin-bottom:12px" autocapitalize="none">
+      <input id="li-pass" type="password" placeholder="Password" style="margin-bottom:20px"
+             onkeydown="if(event.key==='Enter')handleLogin()">
+      <button class="btn-primary" style="width:100%;padding:14px;font-size:15px;letter-spacing:.06em" onclick="handleLogin()">Sign In</button>
+    </div>
+  </div>`;
+}
+
+// ── Add Carrier form ──────────────────────────────────────
+function renderAddUser() {
+  return `
+  <div class="surface" style="margin-bottom:16px">
+    <div class="label" style="margin-bottom:12px">New Carrier</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <input id="new-username" type="text" placeholder="Username" style="flex:1;min-width:140px;margin:0">
+      <input id="new-password" type="password" placeholder="Password" style="flex:1;min-width:140px;margin:0">
+      <button class="btn-success" style="font-size:12px;padding:8px 18px;white-space:nowrap" onclick="handleAddUser()">Add</button>
+      <button class="btn-ghost" style="font-size:12px;padding:8px 14px" onclick="setState({expandedUser:null})">Cancel</button>
+    </div>
+  </div>`;
+}
+
+// ── Event handlers ─────────────────────────────────────────
+function toggleStop(i, loadNum) {
+  const body = document.getElementById('stop-body-'+i);
+  const chev = document.getElementById('chev-'+i);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (chev) chev.style.transform = open?'rotate(180deg)':'none';
+  if (loadNum) {
+    if (!state.expandedStops[loadNum]) state.expandedStops[loadNum] = new Set();
+    if (open) state.expandedStops[loadNum].add(i);
+    else       state.expandedStops[loadNum].delete(i);
+  }
+}
+
+async function handleLogin() {
+  const username = (document.getElementById('li-user')?.value||'').trim().toLowerCase();
+  const password =  document.getElementById('li-pass')?.value||'';
+  if (!username||!password) return showToast('Enter username and password','err');
+  if (username==='admin') {
+    if (password===ADMIN_PASSWORD) { await refreshAll(); setState({session:{role:'admin',name:'Admin',id:'admin'},view:'admin'}); }
+    else showToast('Incorrect admin password','err');
+    return;
+  }
+  const userKey = Object.keys(state.users).find(k => k.toLowerCase() === username);
+  const u = userKey ? state.users[userKey] : null;
+  if (!u) return showToast('Username not found','err');
+  const hash = await hashPassword(password);
+  if (hash !== u.password_hash) return showToast('Incorrect password','err');
+  await refreshAll();
+  setState({session:{role:'driver',name:u.name,id:userKey},view:'driver'});
+  startGPS();
+}
+
+function handleLogout() {
+  stopGPS();
+  try { sessionStorage.removeItem('pfs_session'); } catch(e){}
+  setState({session:null,view:'login',selectedLoad:null,expandedUser:null});
+}
+
+async function handleAddUser() {
+  const username = (document.getElementById('new-username')?.value||'').trim();
+  const password = document.getElementById('new-password')?.value||'';
+  if (!username||!password) return showToast('Enter username and password','err');
+  const hash = await hashPassword(password);
+  const res = await api('saveUser',{username,password_hash:hash});
+  if (res.error) return showToast(res.error,'err');
+  showToast('Carrier added');
+  const usersRes = await api('getUsers');
+  setState({users:usersRes.users||{},expandedUser:null});
+}
+
+async function handleDeleteUser(uid) {
+  if (!confirm(`Remove carrier "${uid}"?`)) return;
+  const res = await api('deleteUser',{username:uid});
+  if (res.error) return showToast(res.error,'err');
+  showToast('Carrier removed');
+  const usersRes = await api('getUsers');
+  setState({users:usersRes.users||{}});
+}
+
+async function saveLoads(uid) {
+  const checks = document.querySelectorAll(`.load-check-${uid}`);
+  const selected = Array.from(checks).filter(c=>c.checked).map(c=>c.value);
+  const b64 = btoa(selected.join(','));
+  const res = await api('assignLoads',{username:uid,loadsB64:b64});
+  if (res.error) return showToast(res.error,'err');
+  showToast('Loads saved');
+  const usersRes = await api('getUsers');
+  setState({users:usersRes.users||{}});
+}
+
+async function confirmDispatch(loadNum) {
+  const username = state.session?.id || state.session?.name || '';
+  const now = new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+  const btn = document.getElementById('confirm-block-'+loadNum);
+  const res = await api('confirmLoad',{load_number:loadNum,confirmed_by:username,confirmed_at:now});
+  if (res.error) return showToast(res.error,'err');
+  state.trucks = state.trucks.map(t=>t.load_number===loadNum?{...t,confirmed_by:username,confirmed_at:now}:t);
+  setState({});
+  showToast('Dispatch confirmed');
+}
+
+async function saveActiveStops(loadNum) {
+  const checks = document.querySelectorAll(`.stop-vis-${loadNum}`);
+  const active = Array.from(checks).filter(c=>c.checked).map(c=>c.value);
+  const stops  = active.join('|');
+  const res = await api('saveActiveStops',{load_number:loadNum,stops});
+  if (res.error) return showToast(res.error,'err');
+  state.trucks = state.trucks.map(t=>t.load_number===loadNum?{...t,active_stops:active}:t);
+  setState({});
+  showToast('Visibility saved');
+}
+
+async function refreshLoads() {
+  try {
+    const res = await api('getLoads');
+    setState({trucks:res.trucks||[]});
+  } catch(e) { showToast('Error refreshing','err'); }
+}
+
+async function refreshAll() {
+  try {
+    const [loadsRes,usersRes] = await Promise.all([api('getLoads'),api('getUsers')]);
+    setState({trucks:loadsRes.trucks||[],users:usersRes.users||{}});
+  } catch(e) {}
+}
+
+// ── Download PDF ──────────────────────────────────────────
+function downloadPDF(loadNum, showPay=true, fromArchive=false) {
+  const truck = fromArchive
+    ? state.archiveResult
+    : (state.trucks.find(t=>t.load_number===loadNum) || state.archiveResult);
+  if (!truck) return;
+
+  const allStops    = groupStops(truck.shipments);
+  const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
+  const stops       = activeNames ? allStops.filter(s=>activeNames.includes(s.name)) : allStops;
+  const activeShipments = activeNames
+    ? (truck.shipments||[]).filter(s=>activeNames.includes(s.consignee))
+    : (truck.shipments||[]);
+  const totalW = activeShipments.reduce((a,s)=>a+s.weight,0);
+  const totalP = activeShipments.reduce((a,s)=>a+s.pallets,0);
+  const openStops = state.expandedStops[loadNum] || new Set();
+
+  const STOP_COLORS = ['#f5a623','#5b8dee','#3ecf8e','#e879a0','#a78bfa','#f97316','#06b6d4'];
+
+  const stopRows = stops.map((st, i) => {
+    const sw = st.orders.reduce((a,s)=>a+s.weight,0);
+    const sp = st.orders.reduce((a,s)=>a+s.pallets,0);
+    const isOpen = openStops.has(i);
+    const orderDetail = isOpen ? `
+      <table style="width:100%;border-collapse:collapse;margin-top:0">
+        <thead><tr style="background:#f3f4f6">
+          <th style="padding:6px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb">PO / Reference</th>
+          <th style="padding:6px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb">Shipper / Origin</th>
+          <th style="padding:6px 10px;text-align:left;font-size:10px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb">Pickup #</th>
+          <th style="padding:6px 10px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb">Lbs</th>
+          <th style="padding:6px 10px;text-align:right;font-size:10px;color:#6b7280;text-transform:uppercase;border-bottom:1px solid #e5e7eb">Pallets</th>
+        </tr></thead>
+        <tbody>
+          ${st.orders.map(s=>`<tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:6px 10px;font-size:11px;color:#374151">${s.po_num||'—'}${s.notes?`<div style="font-size:10px;color:#f5a623;margin-top:2px">📌 ${s.notes}</div>`:''}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151">${s.shipper||'—'}<div style="font-size:10px;color:#9ca3af">${s.or_city}, ${s.or_state}</div></td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151">${s.pickup_num||'—'}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151;text-align:right">${s.weight>0?s.weight.toLocaleString():'—'}</td>
+            <td style="padding:6px 10px;font-size:11px;color:#374151;text-align:right">${s.pallets>0?s.pallets:'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '';
+
+    return `
+    <div style="margin-bottom:14px;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;page-break-inside:avoid">
+      <div style="background:#1e2330;padding:12px 16px;display:flex;align-items:center;gap:12px">
+        <div style="width:28px;height:28px;border-radius:6px;background:${STOP_COLORS[i%STOP_COLORS.length]};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#0d0f14;flex-shrink:0">${i+1}</div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:15px;color:#f9fafb;text-transform:uppercase;letter-spacing:.04em">${st.name}</div>
+          <div style="font-size:12px;color:#d1d5db;margin-top:3px">📍 ${st.app_address || (st.del_city + ', ' + st.del_state)}</div>
+          <div style="font-size:12px;color:#f5a623;margin-top:2px">🗓 ${fmtDate(st.sched_del)}${st.appt?' <span style="font-size:10px;background:rgba(244,91,105,.2);color:#f87171;border-radius:3px;padding:1px 5px;margin-left:4px">⏰ APPT</span>':''}</div>
+          ${st.phone?`<div style="font-size:11px;color:#9ca3af;margin-top:2px">📞 ${st.phone}</div>`:''}
+        </div>
+        <div style="display:flex;gap:20px;text-align:center;flex-shrink:0">
+          <div style="background:rgba(255,255,255,.08);border-radius:8px;padding:8px 14px">
+            <div style="font-weight:900;font-size:22px;color:#f9fafb">${st.orders.length}</div>
+            <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Orders</div>
+          </div>
+          <div style="background:rgba(255,255,255,.08);border-radius:8px;padding:8px 14px">
+            <div style="font-weight:900;font-size:22px;color:#f9fafb">${sw.toLocaleString()}</div>
+            <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Lbs</div>
+          </div>
+          <div style="background:rgba(255,255,255,.08);border-radius:8px;padding:8px 14px">
+            <div style="font-weight:900;font-size:22px;color:#f9fafb">${sp}</div>
+            <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Pallets</div>
+          </div>
+        </div>
+      </div>
+      ${orderDetail}
+    </div>`;
+  }).join('');
+
+  const payLine = showPay
+    ? `<div style="font-size:13px;color:#374151"><span style="font-weight:700">Carrier Pay:</span> ${truck.carrier_pay}</div>`
+    : '';
+  const now = new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+
+  const html = `<!DOCTYPE html><html><head>
+  <title>Load ${truck.load_number} — ${showPay?'Rate Confirmation':'Driver Dispatch'}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#111827;background:#fff;padding:32px}@media print{body{padding:16px}.no-print{display:none}}@font-face{font-family:'Barlow Condensed';src:local('Barlow Condensed')}</style>
+  </head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #111827">
+    <div style="display:flex;align-items:center;gap:14px">
+      <img src="${LOGO_B64}" style="width:52px;height:52px;object-fit:contain">
+      <div>
+        <div style="font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">Providence Solutions</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px">${showPay?'Rate Confirmation':'Driver Dispatch'} — Confidential</div>
+      </div>
+    </div>
+    <div style="text-align:right;font-size:12px;color:#6b7280">Generated ${now}</div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#9ca3af;margin-bottom:4px">Load Number</div>
+      <div style="font-size:52px;font-weight:900;color:#111827;line-height:1">${truck.load_number}</div>
+      <div style="font-size:14px;color:#6b7280;margin-top:4px">${truck.carrier}</div>
+    </div>
+    <div style="display:flex;gap:24px;text-align:center">
+      <div><div style="font-size:32px;font-weight:900">${stops.length}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Stops</div></div>
+      <div><div style="font-size:32px;font-weight:900">${activeShipments.length}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Orders</div></div>
+      <div><div style="font-size:32px;font-weight:900">${totalW.toLocaleString()}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Total Lbs</div></div>
+      <div><div style="font-size:32px;font-weight:900">${totalP}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Pallets</div></div>
+    </div>
+  </div>
+  ${payLine ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 18px;margin-bottom:24px;display:inline-block">${payLine}</div>` : ''}
+  ${(truck.pickups&&truck.pickups.length>0)?`
+  <div style="margin-bottom:24px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#9ca3af;margin-bottom:10px">Pickup Stops — In Order</div>
+    ${truck.pickups.map((p,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px">
+      <div style="width:24px;height:24px;border-radius:50%;background:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'#f5a623':'#111827'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex-shrink:0">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px;color:#111827">${p.name}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">${p.address}</div>
+        ${p.datetime?`<div style="font-size:11px;color:#f5a623;margin-top:3px">🗓 ${p.datetime}</div>`:''}
+        ${p.notes?`<div style="font-size:11px;color:#6b7280;margin-top:2px">📝 ${p.notes}</div>`:''}
+      </div>
+    </div>`).join('')}
+  </div>` : ''}
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#9ca3af;margin-bottom:12px">${stops.length} Delivery Stop${stops.length!==1?'s':''}</div>
+  ${stopRows}
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;align-items:center;gap:8px">
+      <img src="${LOGO_B64}" style="width:28px;height:28px;object-fit:contain;opacity:.5">
+      <span style="font-size:11px;color:#9ca3af">Providence Freight Solutions</span>
+    </div>
+    <div style="font-size:11px;color:#9ca3af">Load #${truck.load_number} · Confidential</div>
+  </div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(), 500);
+}
+
+
 function filterPickups(loadNum, query) {
   const dd = document.getElementById('pickup-dd-' + loadNum);
   if (!dd) return;
