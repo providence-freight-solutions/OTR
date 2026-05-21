@@ -525,18 +525,11 @@ function renderLoadCard(truck, isAdmin=false) {
     ${!isAdmin ? `
     <div style="background:#1e2330;border:1px solid #2a3040;border-radius:10px;padding:14px 18px;margin-bottom:16px">
       <div class="label" style="margin-bottom:10px;color:#5b8dee">Pickup Stops — In Order</div>
-      <div class="pickup-row" style="border-color:rgba(245,166,35,.3)">
-        <div class="pickup-num" style="background:#f5a623">1</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:600;color:#f5a623">PROVIDENCE WAREHOUSE</div>
-          <div style="font-size:12px;color:#7a8499;margin-top:1px">Origin</div>
-        </div>
-      </div>
       ${(truck.pickups||[]).map((p,i)=>`
-      <div class="pickup-row">
-        <div class="pickup-num" style="background:#5b8dee">${i+2}</div>
+      <div class="pickup-row" style="border-color:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'rgba(245,166,35,.3)':'#2a3040'}">
+        <div class="pickup-num" style="background:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'#f5a623':'#5b8dee'}">${i+1}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:600;color:#e8ecf4">${esc(p.name)}</div>
+          <div style="font-size:14px;font-weight:600;color:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'#f5a623':'#e8ecf4'}">${esc(p.name)}</div>
           <div style="font-size:12px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
           ${p.datetime?`<div style="font-size:11px;color:#f5a623;margin-top:2px">🗓 ${esc(p.datetime)}</div>`:''}
           ${p.notes?`<div style="font-size:11px;color:#7a8499;margin-top:2px">📝 ${esc(p.notes)}</div>`:''}
