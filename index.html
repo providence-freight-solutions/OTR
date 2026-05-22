@@ -678,8 +678,8 @@ function renderAdminDrivers() {
       const checked = (u.loads||[]).includes(t.load_number);
       const stops   = groupStops(t.shipments);
       return `
-      <label class="check-item" style="border-left-color:${checked?'#3ecf8e':'transparent'}" id="ci-${uid}-${esc(t.load_number)}">
-        <input type="checkbox" ${checked?'checked':''} id="chk-${uid}-${esc(t.load_number)}" onchange="markPending('${uid}','${esc(t.load_number)}',this.checked)">
+      <label class="check-item load-check-wrap" style="border-left-color:${checked?'#3ecf8e':'transparent'}">
+        <input type="checkbox" class="load-check-${esc(uid)}" value="${esc(t.load_number)}" ${checked?'checked':''}>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="mono" style="font-size:15px;color:#f5a623">#${esc(t.load_number)}</span>
@@ -742,6 +742,7 @@ function renderAdminDrivers() {
           <div style="font-size:11px;color:#555;margin-top:8px">Checked members appear in ${esc(u.name)}'s team view when they log in as carrier.</div>
         </div>`:''}'
       </div>`:''}'
+    </div>
   `;
   }).join('');
 
