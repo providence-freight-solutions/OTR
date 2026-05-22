@@ -405,12 +405,12 @@ function renderLoadCard(truck, isAdmin=false) {
         ${truck.stop_status&&truck.stop_status[st.name]&&truck.stop_status[st.name].done ? `
         <span class="done-badge">✓ Done</span>
         <span style="font-size:10px;color:#555">${esc((truck.stop_status[st.name].timestamp)||'')}</span>
-        <button onclick="toggleStopDone('${esc(truck.load_number)}','${esc(st.name)}',false)"
+        <button onclick="toggleStopDoneByIndex('${esc(truck.load_number)}',${i},false)"
                 style="margin-left:auto;background:none;border:1px solid #333;color:#555;border-radius:3px;
                        padding:3px 10px;font-size:10px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;
                        letter-spacing:.06em;text-transform:uppercase">Undo</button>
         ` : `
-        <button onclick="toggleStopDone('${esc(truck.load_number)}','${esc(st.name)}',true)"
+        <button onclick="toggleStopDoneByIndex('${esc(truck.load_number)}',${i},true)"
                 style="background:rgba(62,207,142,.12);border:1px solid rgba(62,207,142,.3);color:#3ecf8e;
                        border-radius:3px;padding:5px 16px;font-size:11px;cursor:pointer;font-weight:700;
                        font-family:'Barlow Condensed',sans-serif;letter-spacing:.08em;text-transform:uppercase">
@@ -1370,6 +1370,18 @@ function stopGPS() {
 }
 
 // ── Stop Done toggle ──────────────────────────────────────
+function toggleStopDoneByIndex(loadNum, stopIndex, done) {
+  // Find stop name by index to avoid apostrophe issues in onclick attributes
+  const truck = state.trucks.find(t => t.load_number === loadNum);
+  if (!truck) return;
+  const allStops   = groupStops(truck.shipments);
+  const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
+  const stops      = activeNames ? allStops.filter(s => activeNames.includes(s.name)) : allStops;
+  const stop       = stops[stopIndex];
+  if (!stop) return;
+  toggleStopDone(loadNum, stop.name, done);
+}
+
 async function toggleStopDone(loadNum, stopName, done) {
   const username = state.session?.id || state.session?.name || '';
   const now = new Date().toLocaleString('en-US',{
