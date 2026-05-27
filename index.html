@@ -254,7 +254,8 @@ let state = {
   showGPSMap:false,      // show GPS map modal
   gpsLocations:[],       // [{username, lat, lng, timestamp}]
   gpsLoading:false,      // loading GPS data
-  carrierLocation:null   // current carrier's own location
+  carrierLocation:null,  // current carrier's own location
+  loadingMsg:null        // message shown on the loading screen
 };
 
 function setState(patch) {
@@ -765,9 +766,13 @@ function render() {
   let html = renderHeader();
   switch(state.view) {
     case 'loading':
-      html += `<div style="text-align:center;padding:80px 20px;color:#555">
+      html += `<div style="text-align:center;padding:80px 20px">
+        <img src="${LOGO_B64}" style="width:56px;height:56px;object-fit:contain;opacity:.6;margin:0 auto 20px;display:block">
         <div class="spinner" style="margin:0 auto 16px"></div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:.1em;text-transform:uppercase">Loading…</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:#f5a623;font-weight:700;margin-bottom:6px">
+          ${state.loadingMsg || 'Loading…'}
+        </div>
+        <div style="font-size:12px;color:#555">Please wait</div>
       </div>`;
       break;
     case 'login':
@@ -981,18 +986,26 @@ async function handleLogin() {
   const username = (document.getElementById('li-user')?.value||'').trim().toLowerCase();
   const password =  document.getElementById('li-pass')?.value||'';
   if (!username||!password) return showToast('Enter username and password','err');
+
   if (username==='admin') {
-    if (password===ADMIN_PASSWORD) { await refreshAll(); setState({session:{role:'admin',name:'Admin',id:'admin'},view:'admin'}); }
-    else showToast('Incorrect admin password','err');
+    if (password!==ADMIN_PASSWORD) return showToast('Incorrect admin password','err');
+    // Show loading state immediately
+    setState({view:'loading', loadingMsg:'Welcome back, Admin. Loading your dashboard…'});
+    await refreshAll();
+    setState({session:{role:'admin',name:'Admin',id:'admin'},view:'admin', loadingMsg:null});
     return;
   }
+
   const userKey = Object.keys(state.users).find(k => k.toLowerCase() === username);
   const u = userKey ? state.users[userKey] : null;
   if (!u) return showToast('Username not found','err');
   const hash = await hashPassword(password);
   if (hash !== u.password_hash) return showToast('Incorrect password','err');
+
+  // Credentials accepted — show loading immediately before the API call
+  setState({view:'loading', loadingMsg:`Welcome, ${u.name}. Loading your loads…`});
   await refreshAll();
-  setState({session:{role:'driver',name:u.name,id:userKey},view:'driver'});
+  setState({session:{role:'driver',name:u.name,id:userKey},view:'driver', loadingMsg:null});
   startGPS();
 }
 
