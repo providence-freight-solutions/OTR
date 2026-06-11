@@ -364,9 +364,11 @@ function renderLoadCard(truck, isAdmin=false) {
     // Admin checkbox for stop visibility
     const adminCheck = isAdmin ? `
       <div style="display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(0,0,0,.2);border-bottom:1px solid #2a3040">
-        <input type="checkbox" id="stop-chk-${esc(truck.load_number)}-${i}" ${isActive?'checked':''}
-               style="width:16px;height:16px;accent-color:#f5a623;cursor:pointer"
-               onchange="markStopPending('${esc(truck.load_number)}',${i},this.checked)">
+        <input type="checkbox" id="stop-chk-${esc(truck.load_number)}-${i}"
+               class="stop-vis-${esc(truck.load_number)}"
+               value="${esc(st.name)}"
+               ${isActive?'checked':''}
+               style="width:16px;height:16px;accent-color:#f5a623;cursor:pointer">
         <label for="stop-chk-${esc(truck.load_number)}-${i}" style="font-size:12px;color:#7a8499;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase">
           ${isActive ? 'Visible to driver' : 'Hidden from driver'}
         </label>
