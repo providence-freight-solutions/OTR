@@ -237,6 +237,12 @@ function groupStops(shipments) {
   return Array.from(map.values());
 }
 
+const PW_ADDRESS = '2 Laurel Dr., Flanders NJ 07836';
+function pwAddr(p) {
+  if (p && p.name && p.name.toUpperCase().includes('PROVIDENCE WAREHOUSE')) return PW_ADDRESS;
+  return (p && p.address) || '';
+}
+
 function esc(str) {
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -313,9 +319,8 @@ function renderLoadCard(truck, isAdmin=false) {
   // Initialize default pickup (Providence Warehouse) if none saved and admin is viewing
   if (isAdmin && !(truck.pickups && truck.pickups.length>0)) {
     const pw = state.addressBook.find(l=>l.name.toUpperCase().includes('PROVIDENCE WAREHOUSE'));
-    truck = {...truck, pickups: pw
-      ? [{name:pw.name, address:pw.address, datetime:'', notes:''}]
-      : [{name:'PROVIDENCE WAREHOUSE', address:'Flanders, NJ', datetime:'', notes:''}]
+    truck = {...truck, pickups:
+      [{name:'PROVIDENCE WAREHOUSE', address:'2 Laurel Dr., Flanders NJ 07836', datetime:'', notes:''}]
     };
     // Sync back to state silently
     state.trucks = state.trucks.map(t=>t.load_number===truck.load_number?truck:t);
@@ -472,7 +477,7 @@ function renderLoadCard(truck, isAdmin=false) {
             <div class="pickup-num" style="${i===0&&p.name==='PROVIDENCE WAREHOUSE'?'background:#f5a623':'background:#5b8dee'}">${i+1}</div>
             <div style="flex:1;min-width:0">
               <div style="font-size:13px;font-weight:600;color:${i===0&&p.name==='PROVIDENCE WAREHOUSE'?'#f5a623':'#e8ecf4'}">${esc(p.name)}</div>
-              <div style="font-size:11px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+              <div style="font-size:11px;color:#7a8499;margin-top:1px">${esc(pwAddr(p))}</div>
             </div>
             <button onclick="removePickup('${esc(truck.load_number)}',${i})" style="background:rgba(244,91,105,.12);border:1px solid rgba(244,91,105,.25);color:#f45b69;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;flex-shrink:0">✕</button>
           </div>
@@ -533,7 +538,7 @@ function renderLoadCard(truck, isAdmin=false) {
         <div class="pickup-num" style="background:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'#f5a623':'#5b8dee'}">${i+1}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;color:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'#f5a623':'#e8ecf4'}">${esc(p.name)}</div>
-          <div style="font-size:12px;color:#7a8499;margin-top:1px">${esc(p.address)}</div>
+          <div style="font-size:12px;color:#7a8499;margin-top:1px">${esc(pwAddr(p))}</div>
           ${p.datetime?`<div style="font-size:11px;color:#f5a623;margin-top:2px">🗓 ${esc(p.datetime)}</div>`:''}
           ${p.notes?`<div style="font-size:11px;color:#7a8499;margin-top:2px">📝 ${esc(p.notes)}</div>`:''}
         </div>
@@ -1198,7 +1203,7 @@ function downloadPDF(loadNum, showPay=true, fromArchive=false) {
       <div style="width:24px;height:24px;border-radius:50%;background:${i===0&&p.name.toUpperCase().includes('PROVIDENCE')?'#f5a623':'#111827'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;flex-shrink:0">${i+1}</div>
       <div style="flex:1">
         <div style="font-weight:700;font-size:13px;color:#111827">${p.name}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px">${p.address}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px">${pwAddr(p)}</div>
         ${p.datetime?`<div style="font-size:11px;color:#f5a623;margin-top:3px">🗓 ${p.datetime}</div>`:''}
         ${p.notes?`<div style="font-size:11px;color:#6b7280;margin-top:2px">📝 ${p.notes}</div>`:''}
       </div>
@@ -1251,7 +1256,7 @@ function getDefaultPickups() {
   const pw = state.addressBook.find(loc=>loc.name.toUpperCase().includes('PROVIDENCE WAREHOUSE'));
   return pw
     ? [{name: pw.name, address: pw.address, datetime:'', notes:''}]
-    : [{name:'PROVIDENCE WAREHOUSE', address:'Flanders, NJ', datetime:'', notes:''}];
+    : [{name:'PROVIDENCE WAREHOUSE', address:'2 Laurel Dr., Flanders NJ 07836', datetime:'', notes:''}];
 }
 
 function addPickupByIndex(loadNum, i) {
