@@ -237,6 +237,35 @@ function groupStops(shipments) {
   return Array.from(map.values());
 }
 
+// Build the full stop list including manually-added stops (e.g. Peacock Cheese)
+function buildAllStops(truck) {
+  let allStops = groupStops(truck.shipments);
+  if (truck.manual_stops && truck.manual_stops.length) {
+    truck.manual_stops.forEach(ms => {
+      const manualStop = {
+        name: ms.name,
+        del_city: ms.del_city || '',
+        del_state: ms.del_state || '',
+        sched_del: ms.datetime || '',
+        app_address: ms.address || '',
+        phone: ms.phone || '',
+        appt: !!ms.datetime,
+        is_manual: true,
+        orders: [{
+          consignee: ms.name,
+          weight: parseInt(ms.weight) || 0,
+          pallets: parseInt(ms.pallets) || 0,
+          po_num: '', shipper: ms.name, or_city: '', or_state: '',
+          pickup_num: '', ship_ref: '', notes: ms.notes || ''
+        }]
+      };
+      const pos = ms.position != null ? ms.position : allStops.length;
+      allStops.splice(Math.min(pos, allStops.length), 0, manualStop);
+    });
+  }
+  return allStops;
+}
+
 const PW_ADDRESS = '2 Laurel Dr., Flanders NJ 07836';
 function pwAddr(p) {
   if (p && p.name && p.name.toUpperCase().includes('PROVIDENCE WAREHOUSE')) return PW_ADDRESS;
@@ -325,13 +354,18 @@ function renderLoadCard(truck, isAdmin=false) {
     // Sync back to state silently
     state.trucks = state.trucks.map(t=>t.load_number===truck.load_number?truck:t);
   }
-  const allStops = groupStops(truck.shipments);
+  let allStops = buildAllStops(truck);
   // active_stops is an array of stop names admin has enabled; empty = all active
   const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
   // Admin sees ALL stops with checkboxes; driver sees only active stops (renumbered)
   const stops = isAdmin ? allStops : (activeNames ? allStops.filter(st=>activeNames.includes(st.name)) : allStops);
-  const totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
-  const totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
+  let totalW = (truck.shipments||[]).reduce((a,s)=>a+s.weight,0);
+  let totalP = (truck.shipments||[]).reduce((a,s)=>a+s.pallets,0);
+  // Include manually-added stops (e.g. Peacock Cheese) in totals
+  (truck.manual_stops||[]).forEach(ms => {
+    totalW += parseInt(ms.weight) || 0;
+    totalP += parseInt(ms.pallets) || 0;
+  });
   const hasLocal = truck.ca_local_del && truck.ca_local_del !== '$0.00';
 
   // Route bar: admin shows all (dimmed if inactive), driver shows only active
@@ -515,6 +549,65 @@ function renderLoadCard(truck, isAdmin=false) {
         <div style="font-size:12px;color:#7a8499;margin-top:2px">Check the stops the driver should see. Unchecked stops are hidden from the driver.</div>
       </div>
       <button class="btn-primary" style="font-size:12px;padding:8px 20px;white-space:nowrap" onclick="saveActiveStops('${esc(truck.load_number)}')">✓ Save Visibility</button>
+    </div>
+    <!-- Manual Delivery Stops (Peacock Cheese consolidation) -->
+    <div style="margin-bottom:16px;background:rgba(62,207,142,.05);border:1px solid rgba(62,207,142,.2);border-radius:10px;padding:14px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#3ecf8e">Manual Delivery Stops</div>
+          <div style="font-size:12px;color:#7a8499;margin-top:2px">Add a consolidation stop like Peacock Cheese with manual weight, pallets, and delivery time.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-ghost" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="addManualStop('${esc(truck.load_number)}')">+ Add Peacock Cheese</button>
+          <button class="btn-success" style="font-size:12px;padding:7px 16px;white-space:nowrap" onclick="saveManualStops('${esc(truck.load_number)}')">✓ Save Stops</button>
+        </div>
+      </div>
+      <div id="manual-stops-${esc(truck.load_number)}">
+        ${(truck.manual_stops||[]).map((ms,mi)=>`
+        <div style="background:#0f0f10;border:1px solid #1a1a1a;border-radius:8px;padding:12px 14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:24px;height:24px;border-radius:50%;background:#3ecf8e;color:#0d0f14;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:12px;flex-shrink:0">★</div>
+            <div style="flex:1;font-size:14px;font-weight:600;color:#3ecf8e">${esc(ms.name)}</div>
+            <button onclick="removeManualStop('${esc(truck.load_number)}',${mi})" style="background:rgba(244,91,105,.12);border:1px solid rgba(244,91,105,.25);color:#f45b69;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;flex-shrink:0">✕</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <div style="flex:1;min-width:90px">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Weight (lbs)</div>
+              <input type="number" value="${esc(ms.weight||'')}" placeholder="0"
+                     oninput="updateManualStop('${esc(truck.load_number)}',${mi},'weight',this.value)"
+                     style="font-size:13px;padding:6px 10px;margin:0">
+            </div>
+            <div style="flex:1;min-width:90px">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Pallets</div>
+              <input type="number" value="${esc(ms.pallets||'')}" placeholder="0"
+                     oninput="updateManualStop('${esc(truck.load_number)}',${mi},'pallets',this.value)"
+                     style="font-size:13px;padding:6px 10px;margin:0">
+            </div>
+            <div style="flex:1;min-width:90px">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Position</div>
+              <select onchange="updateManualStop('${esc(truck.load_number)}',${mi},'position',this.value)" style="font-size:13px;padding:6px 10px;margin:0">
+                ${groupStops(truck.shipments).map((_,pi)=>`<option value="${pi}" ${ms.position==pi?'selected':''}>Stop ${pi+1}</option>`).join('')}
+                <option value="${groupStops(truck.shipments).length}" ${(ms.position==null||ms.position>=groupStops(truck.shipments).length)?'selected':''}>Last</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div style="flex:2;min-width:160px">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Delivery Date &amp; Time</div>
+              <input type="text" value="${esc(ms.datetime||'')}" placeholder="e.g. May 25, 2026 2:00 PM"
+                     oninput="updateManualStop('${esc(truck.load_number)}',${mi},'datetime',this.value)"
+                     style="font-size:13px;padding:6px 10px;margin:0">
+            </div>
+            <div style="flex:1;min-width:120px">
+              <div style="font-size:10px;color:#7a8499;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px">Address</div>
+              <input type="text" value="${esc(ms.address||'')}" placeholder="Address"
+                     oninput="updateManualStop('${esc(truck.load_number)}',${mi},'address',this.value)"
+                     style="font-size:13px;padding:6px 10px;margin:0">
+            </div>
+          </div>
+        </div>`).join('')}
+        ${!(truck.manual_stops&&truck.manual_stops.length)?'<div style="font-size:12px;color:#555;text-align:center;padding:8px">No manual stops added.</div>':''}
+      </div>
     </div>` : `
     <div id="confirm-block-${esc(truck.load_number)}" style="margin-bottom:16px">
       ${truck.confirmed_by ? `
@@ -826,7 +919,7 @@ function render() {
       } else {
         const myTrucks = assignedNums.map(ln=>state.trucks.find(t=>t.load_number===ln)).filter(Boolean);
         const cards = myTrucks.map(t=>{
-          const allStopsForCard = groupStops(t.shipments);
+          const allStopsForCard = buildAllStops(t);
           const activeNamesForCard = t.active_stops && t.active_stops.length > 0 ? t.active_stops : null;
           const stops = activeNamesForCard ? allStopsForCard.filter(s=>activeNamesForCard.includes(s.name)) : allStopsForCard;
           const activeShipments = activeNamesForCard
@@ -878,7 +971,7 @@ function render() {
                 '</div>' +
                 (tmLoads.length === 0 ? '<div style="padding:14px;font-size:12px;color:#555">No loads assigned</div>' :
                 tmLoads.map(t => {
-                  const allS  = groupStops(t.shipments);
+                  const allS  = buildAllStops(t);
                   const actN  = t.active_stops&&t.active_stops.length>0?t.active_stops:null;
                   const stps  = actN?allS.filter(s=>actN.includes(s.name)):allS;
                   const done  = stps.filter(s=>t.stop_status&&t.stop_status[s.name]&&t.stop_status[s.name].done).length;
@@ -1097,14 +1190,12 @@ function downloadPDF(loadNum, showPay=true, fromArchive=false) {
     : (state.trucks.find(t=>t.load_number===loadNum) || state.archiveResult);
   if (!truck) return;
 
-  const allStops    = groupStops(truck.shipments);
+  const allStops    = buildAllStops(truck);
   const activeNames = truck.active_stops && truck.active_stops.length > 0 ? truck.active_stops : null;
   const stops       = activeNames ? allStops.filter(s=>activeNames.includes(s.name)) : allStops;
-  const activeShipments = activeNames
-    ? (truck.shipments||[]).filter(s=>activeNames.includes(s.consignee))
-    : (truck.shipments||[]);
-  const totalW = activeShipments.reduce((a,s)=>a+s.weight,0);
-  const totalP = activeShipments.reduce((a,s)=>a+s.pallets,0);
+  // Totals from visible stops (includes manual stops since they're in allStops)
+  const totalW = stops.reduce((a,st)=>a+st.orders.reduce((b,o)=>b+o.weight,0),0);
+  const totalP = stops.reduce((a,st)=>a+st.orders.reduce((b,o)=>b+o.pallets,0),0);
   const openStops = state.expandedStops[loadNum] || new Set();
 
   const STOP_COLORS = ['#f5a623','#5b8dee','#3ecf8e','#e879a0','#a78bfa','#f97316','#06b6d4'];
@@ -1189,7 +1280,7 @@ function downloadPDF(loadNum, showPay=true, fromArchive=false) {
     </div>
     <div style="display:flex;gap:24px;text-align:center">
       <div><div style="font-size:32px;font-weight:900">${stops.length}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Stops</div></div>
-      <div><div style="font-size:32px;font-weight:900">${activeShipments.length}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Orders</div></div>
+      <div><div style="font-size:32px;font-weight:900">${stops.reduce((a,st)=>a+st.orders.length,0)}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Orders</div></div>
       <div><div style="font-size:32px;font-weight:900">${totalW.toLocaleString()}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Total Lbs</div></div>
       <div><div style="font-size:32px;font-weight:900">${totalP}</div><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em">Pallets</div></div>
     </div>
@@ -1298,6 +1389,61 @@ function updatePickupField(loadNum, idx, field, value) {
   });
   // No render() — don't re-render while typing, just update state silently
   state = {...state};
+}
+
+// ── Manual delivery stops (Peacock Cheese) ───────────────
+function addManualStop(loadNum) {
+  const pc = state.addressBook.find(l=>l.name.toUpperCase().includes('PEACOCK'));
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const manual_stops = [...(t.manual_stops||[]), {
+      name: pc ? pc.name : 'PEACOCK CHEESE',
+      address: pc ? pc.address : '',
+      weight: '', pallets: '', datetime: '', position: null, notes: ''
+    }];
+    return {...t, manual_stops};
+  });
+  render();
+}
+
+function removeManualStop(loadNum, idx) {
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const manual_stops = (t.manual_stops||[]).filter((_,i)=>i!==idx);
+    return {...t, manual_stops};
+  });
+  render();
+}
+
+function updateManualStop(loadNum, idx, field, value) {
+  state.trucks = state.trucks.map(t => {
+    if (t.load_number !== loadNum) return t;
+    const manual_stops = (t.manual_stops||[]).map((ms,i)=>{
+      if (i!==idx) return ms;
+      const v = (field==='position') ? (value==='' ? null : parseInt(value)) : value;
+      return {...ms, [field]: v};
+    });
+    return {...t, manual_stops};
+  });
+  // Don't re-render on every keystroke for text fields; only for position (select)
+  if (field === 'position') render();
+  else state = {...state};
+}
+
+async function saveManualStops(loadNum) {
+  const truck = state.trucks.find(t=>t.load_number===loadNum);
+  if (!truck) return;
+  const stops = truck.manual_stops || [];
+  try {
+    const json = JSON.stringify(stops);
+    const b64  = btoa(unescape(encodeURIComponent(json)));
+    const res  = await api('saveManualStops', {load_number: loadNum, stopsB64: b64});
+    if (res.error) throw new Error(res.error);
+    showToast('Manual stops saved');
+    render();
+  } catch(e) {
+    showToast(e.message||'Error saving manual stops','err');
+  }
 }
 
 async function savePickups(loadNum) {
